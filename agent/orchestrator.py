@@ -21,7 +21,7 @@ _HERE = Path(__file__).resolve().parent
 
 
 def _load_conf():
-    """读 config.json（插件根或同级）；读不到返回 {}（dashboard 布局照旧）。"""
+    """读 config.json（插件根 或 脚本同级）; 都没有则返回 {} (纯 dashboard 布局)."""
     for cand in (_HERE.parent / "config.json", _HERE / "config.json"):
         try:
             if cand.is_file():
@@ -31,43 +31,58 @@ def _load_conf():
     return {}
 
 
-CONF = _load_conf()
+CFG = _load_conf()          # 配置 dict（不要和下面的 CONF=config.yaml 路径混用）
 
 
 def _resolve_dash():
-    """数据目录: env > config.dashboard_dir > 插件 data/ > 脚本同级目录。"""
+    """数据目录: env > config.dashboard_dir > 插件 data/ > 脚本同级."""
     env = os.environ.get("A2A_DASH_DIR")
     if env:
         return Path(env)
-    if CONF.get("dashboard_dir"):
-        return Path(CONF["dashboard_dir"])
+    if CFG.get("dashboard_dir"):
+        return Path(CFG["dashboard_dir"])
     if (_HERE.parent / "server").is_dir() or (_HERE.parent / "data").is_dir():
-        return _HERE.parent / "data"      # 插件布局: agent/ 的同级 data/
-    return _HERE                           # dashboard 布局: 脚本所在目录
+        return _HERE.parent / "data"
+    return _HERE
 
 
 DASH = _resolve_dash()
 
 
 def _resolve_panel():
-    """面板地址: env > config.panel_url > config 本机端口 > MBP→Mini 旧默认。"""
+    """面板地址: env > config.panel_url > config 本机端口 > 127.0.0.1 默认."""
     env = os.environ.get("A2A_PANEL_URL")
     if env:
         return env.rstrip("/")
-    if CONF.get("panel_url"):
-        return str(CONF["panel_url"]).rstrip("/")
-    if CONF:
-        return "http://127.0.0.1:%s" % CONF.get("web_port", 7844)
-    return "http://100.110.231.32:7844"
+    if CFG.get("panel_url"):
+        return str(CFG["panel_url"]).rstrip("/")
+    if CFG:
+        return "http://127.0.0.1:%s" % CFG.get("web_port", 7844)
+    return "http://127.0.0.1:7844"
 
 
 PANEL = _resolve_panel()
+
+# 本机 / 对端 gateway（对端未配置时退化为本机）
+LOCAL_GW = (CFG.get("gateway_url") or "http://127.0.0.1:9900").rstrip("/")
+_r = CFG.get("remote") or {}
+REMOTE_GW = ("http://%s:%s" % (_r["host"], _r.get("gateway_port", 9900))).rstrip("/") if _r.get("host") else LOCAL_GW
+
+# 编排角色（--mode pipeline 的 起草/审议/调度），名字可由 config.orchestration 覆盖
+_ORCH = CFG.get("orchestration") or {}
+ROLE_DRAFT = _ORCH.get("drafter", "zhongshu")
+ROLE_REVIEW = _ORCH.get("reviewer", "menxia")
+ROLE_DISPATCH = _ORCH.get("dispatcher", "shangshu")
+
 CONF = HOME / ".hermes" / "config.yaml"
 ENV = HOME / ".hermes" / ".env"
-MBP_GW = "http://127.0.0.1:9900"
-MINI_GW = "http://100.110.231.32:9900"
-MINI_FLOW = "http://100.110.231.32:7844/api/flow"
-MINI_LEDGER = "http://100.110.231.32:7844/api/task-report"
+
+# 兼容旧代码里的常量名（值全部来自上面推导）
+MBP_GW = LOCAL_GW
+MINI_GW = REMOTE_GW
+MINI_FLOW = PANEL + "/api/flow"
+MINI_LEDGER = PANEL + "/api/task-report"
+MINI_PANEL = PANEL
 
 PLAN_WORDS = ["方案", "规划", "设计", "计划", "策划", "架构", "蓝图", "proposal", "plan", "design"]
 
@@ -80,8 +95,14 @@ def read_token():
     except Exception:
         pass
     try:
-        m = re.search(r"mac-mini:.*?token:\s*(\S+)", CONF.read_text(), re.S)
-        return m.group(1) if m else ""
+        txt = CONF.read_text()
+        blk = re.search(r"a2a_agents:(.*?)(?=\n[a-z_]+:|\Z)", txt, re.S)
+        if blk:
+            t = re.search(r"token:\s*(\S+)", blk.group(1))
+            if t:
+                return t.group(1)
+        t = re.search(r"platforms:(.*?)token:\s*(\S+)", txt, re.S)
+        return t.group(2) if t else ""
     except Exception:
         return ""
 
@@ -374,7 +395,7 @@ def daily_selfopt(task):
     nodes["p_mx"] = "running"
     checks = []
     for path, label in (("/", "面板页面"), ("/api/topology", "topology"), ("/api/outbox", "outbox")):
-        code, body, ms = _dget(MINI_PANEL + path if "MINI_PANEL" in globals() else "http://127.0.0.1:7844" + path)
+        code, body, ms = _dget(MINI_PANEL + path)
         ok = code == 200
         checks.append((label, code, ms, len(body)))
         if not ok:
@@ -471,7 +492,7 @@ def daily_selfopt(task):
 
 def load_ledger_probe():
     """读本机面板账本 (供 daily 检查僵尸)."""
-    code, body, _ = _dget((MINI_PANEL if "MINI_PANEL" in globals() else "http://127.0.0.1:7844") + "/api/topology", timeout=8)
+    code, body, _ = _dget(MINI_PANEL + "/api/topology", timeout=8)
     if code != 200:
         return []
     try:
@@ -513,10 +534,10 @@ def main():
         nodes["p_mbp"] = "done"
 
         nodes["p_zs"] = "running"
-        push_flow(board(task, mode, nodes, "03 中书省 · 起草方案", "zhongshu 起草中…"))
+        push_flow(board(task, mode, nodes, "03 起草 · " + ROLE_DRAFT, ROLE_DRAFT + " 起草中…"))
         step("03 中书省起草", "mbp")
         ledger("running", "中书省起草中")
-        st, draft = a2a_call(MBP_GW + "/zhongshu", f"请为以下任务起草一份简明方案(300字内):\n{task}")
+        st, draft = a2a_call(MBP_GW + "/" + ROLE_DRAFT, f"请为以下任务起草一份简明方案(300字内):\n{task}")
         print(f"[03 中书省] {st}")
         nodes["p_zs"] = "done" if st == "TASK_STATE_COMPLETED" else "blocked"
         push_flow(board(task, mode, nodes, "03 中书省 · 完成", draft))
@@ -526,11 +547,11 @@ def main():
             sys.exit(2)
 
         nodes["p_mx"] = "running"
-        push_flow(board(task, mode, nodes, "04 门下省 · 审核", "menxia 审核中…"))
+        push_flow(board(task, mode, nodes, "04 审核 · " + ROLE_REVIEW, ROLE_REVIEW + " 审核中…"))
         step("04 门下省审核", "mbp")
         ledger("running", "门下省审核中")
         st, review = a2a_call(
-            MBP_GW + "/menxia",
+            MBP_GW + "/" + ROLE_REVIEW,
             f"请审核以下方案。若可用,第一行回复『通过』;若不可用,第一行回复『驳回』并说明理由。\n方案:\n{draft}",
         )
         print(f"[04 门下省] {st} | {'通过' if '通过' in review else '驳回/其他'}")
@@ -553,7 +574,7 @@ def main():
         step("06 尚书省执行", "mini")
         ledger("running", "Mini 尚书省接单执行中")
         st, out = a2a_call(
-            MINI_GW + "/shangshu",
+            MINI_GW + "/" + ROLE_DISPATCH,
             f"以下方案已通过中书起草与门下审核, 请执行并给出结果:\n【任务】{task}\n【方案】{draft}",
             timeout=900,
         )

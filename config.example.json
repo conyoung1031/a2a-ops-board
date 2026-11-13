@@ -1,5 +1,4 @@
 {
-  "_comment": "由 installer.py 自动生成。panel_url 留空 = 本机 127.0.0.1:<web_port>；双机时填对端面板地址（编排器推 flow 用）。",
   "mode": "single",
   "local_name": "MyMac",
   "remote_name": "Remote",
@@ -25,7 +24,16 @@
     "lihu": "吏部"
   },
   "services": {
-    "prefix": "com.hermes"
+    "prefix": "com.hermes",
+    "web": true,
+    "daily": true,
+    "reporter": false
   },
-  "dashboard_dir": ""
+  "dashboard_dir": "",
+  "orchestration": {
+    "drafter": "zhongshu",
+    "reviewer": "menxia",
+    "dispatcher": "shangshu"
+  },
+  "_comment": "orchestration 只在 --mode pipeline 用到（起草/审议/调度三个 profile 名，你有别的审批架构就改成自己的）；services.web=面板服务, services.daily=每日自检, services.reporter=向对端上报（发单机开, 值守机关）"
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""双机 A2A dashboard 服务端 — Mini 单机常驻版 (bind 0.0.0.0:7844).
+"""A2A 运控台服务端 — 单进程常驻，bind 0.0.0.0:<config.web_port>.
 
 MBP 侧不驻留任何服务 (太上皇指令 2026-11-09), 本服务只展示 Mini 本机真实数据:
   /             — dashboard 页面
@@ -27,8 +27,8 @@ INDEX = Path(__file__).parent / "a2a_topology.html"
 # ════════════════ v27 配置层: 去硬编码, 支持别人安装 ════════════════
 _CONF_DEFAULTS = {
     "mode": "single",                     # single | dual
-    "local_name": "Mini",
-    "remote_name": "MBP",
+    "local_name": "Local",
+    "remote_name": "Remote",
     "web_port": 7844,
     "gateway_url": "http://127.0.0.1:9900",
     "gateway_port": 9900,

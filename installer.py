@@ -234,6 +234,76 @@ WantedBy=default.target
 
 # ════════════ 主流程 ════════════
 
+def install_timer(py, script, label, workdir, args_list=(), interval=None, calendar=None, log=None):
+    """装"跑完即退"的定时任务: interval=每N秒, calendar=(时,分)=每天某点. 返回服务名或 None."""
+    sysname = platform.system()
+    arg_xml = "".join(f"<string>{a}</string>" for a in args_list)
+    if sysname == "Darwin":
+        plist = HOME / "Library" / "LaunchAgents" / f"{label}.plist"
+        plist.parent.mkdir(parents=True, exist_ok=True)
+        log = log or (HERMES / "logs" / f"{label}.log")
+        log.parent.mkdir(parents=True, exist_ok=True)
+        if interval:
+            sched = f"<key>StartInterval</key><integer>{int(interval)}</integer>"
+        elif calendar:
+            sched = (f"<key>StartCalendarInterval</key><dict>"
+                     f"<key>Hour</key><integer>{int(calendar[0])}</integer>"
+                     f"<key>Minute</key><integer>{int(calendar[1])}</integer></dict>")
+        else:
+            sched = ""
+        body = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>{label}</string>
+  <key>ProgramArguments</key><array><string>{py}</string><string>{script}</string>{arg_xml}</array>
+  <key>WorkingDirectory</key><string>{workdir}</string>
+  <key>RunAtLoad</key><true/>{sched}
+  <key>StandardOutPath</key><string>{log}</string>
+  <key>StandardErrorPath</key><string>{log}</string>
+</dict></plist>"""
+        plist.write_text(body, encoding="utf-8")
+        subprocess.run(["launchctl", "unload", str(plist)], capture_output=True)
+        r = subprocess.run(["launchctl", "load", "-w", str(plist)], capture_output=True, text=True)
+        return label if r.returncode == 0 else None
+    elif sysname == "Linux":
+        unit_dir = Path("/etc/systemd/system") if os.geteuid() == 0 else (HOME / ".config/systemd/user")
+        unit_dir.mkdir(parents=True, exist_ok=True)
+        unit = unit_dir / f"{label}.service"
+        if interval:
+            sched_unit = f"OnUnitActiveSec={int(interval)}s\nOnBootSec=60s"
+        elif calendar:
+            sched_unit = f"OnCalendar=*-*-* {int(calendar[0]):02d}:{int(calendar[1]):02d}:00"
+        else:
+            sched_unit = "OnBootSec=60s"
+        exec_args = " ".join([py, script] + [f'"{a}"' for a in args_list])
+        unit.write_text(f"""[Unit]
+Description={label} (a2a-ops-board timer)
+
+[Service]
+Type=oneshot
+ExecStart={exec_args}
+WorkingDirectory={workdir}
+
+[Install]
+WantedBy=default.target
+""", encoding="utf-8")
+        timer = unit_dir / f"{label}.timer"
+        timer.write_text(f"""[Unit]
+Description={label} schedule
+
+[Timer]
+{sched_unit or "OnBootSec=60s"}
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+""", encoding="utf-8")
+        subprocess.run(["systemctl", "--user", "daemon-reload"], capture_output=True)
+        subprocess.run(["systemctl", "--user", "enable", "--now", f"{label}.timer"], capture_output=True)
+        return f"{label}.timer"
+    return None
+
+
 def ask(q, default=""):
     try:
         v = input(f"  {YELLOW}?{RESET} {q}" + (f" [{default}]" if default else "") + ": ").strip()
@@ -336,16 +406,35 @@ def main():
 
     web_port = int(ask("本面板端口", "7844")) if interactive else 7844
 
+    # ── 角色: 谁常开跑面板/自检, 谁偶尔开机只上报 (不预设机器名/数量) ──
+    role = "single"
+    if mode == "dual" and interactive:
+        print()
+        print("    这台机器在这次协同里是什么角色?")
+        print("    [1] 值守机 — 24h 常开, 跑面板 + 每日自检 (收对端上报)")
+        print("    [2] 发单机 — 偶尔开机, 只向值守机上报状态 (不跑面板)")
+        pick = ask("选择角色", "1")
+        role = "client" if pick.strip() == "2" else "hub"
+    elif mode == "dual":
+        role = "hub"
+
+    svc_on = {"web": role in ("hub", "single"),
+              "daily": role in ("hub", "single"),
+              "reporter": role == "client"}
+
     conf = {
         "mode": mode,
+        "role": role,
         "local_name": local_name,
         "remote_name": remote_name,
         "web_port": web_port,
+        "panel_url": "",
         "gateway_url": f"http://127.0.0.1:{port or 9900}",
         "gateway_port": port or 9900,
         "remote": remote,
         "profiles": roles,
-        "services": {"prefix": "com.hermes"},
+        "orchestration": {"drafter": "zhongshu", "reviewer": "menxia", "dispatcher": "shangshu"},
+        "services": {"prefix": "com.hermes", **svc_on},
         "dashboard_dir": "",
     }
 
@@ -369,16 +458,37 @@ def main():
         dim("--no-service: 跳过")
         svc = None
     else:
-        svc = install_service(py, srv, f"{(conf['services']['prefix'])}.a2a-web", str(HERE))
-        if svc:
-            ok(f"面板服务 {svc} 已启动 (: {web_port})")
-            time.sleep(3)
+        prefix = conf["services"]["prefix"]
+        svc = None
+        if svc_on["web"]:
+            svc = install_service(py, srv, f"{prefix}.a2a-web", str(HERE))
+            if svc:
+                ok(f"面板服务 {svc} 已启动 (: {web_port})")
+                time.sleep(3)
+            else:
+                warn("面板服务安装失败 — 可手动运行:")
+                dim(f"{py} {srv}")
         else:
-            warn("服务安装失败 — 可手动运行:")
-            dim(f"{py} {srv}")
+            dim("跳过面板服务 (本机是发单机角色)")
+
+        if svc_on["daily"]:
+            orch = HERE / "agent" / "orchestrator.py"
+            t = install_timer(py, str(orch), f"{prefix}.a2a-opt", str(HERE),
+                              args_list=["每日A2A运控台自优化", "--mode", "daily"], calendar=(0, 0))
+            ok(f"每日自检 {t} (每天 00:00)") if t else warn("每日自检安装失败")
+        if svc_on["reporter"]:
+            rep = HERE / "agent" / "reporter.py"
+            t = install_timer(py, str(rep), f"{prefix}.a2a-reporter", str(HERE), interval=30)
+            ok(f"状态上报 {t} (每 30s → {remote.get('host') or '本机'})") if t else warn("上报服务安装失败")
 
     # ── 5. 自检 ──
     print("\n[5/5] 端到端自检")
+    if not svc_on["web"]:
+        dim("本机未启用面板 (发单机角色) — 跳过面板自检")
+        print(f"\n{'='*62}")
+        ok(f"安装完成 · 角色={role} · 上报目标 {remote.get('host')}:{remote.get('web_port')}")
+        print(f"{'='*62}\n")
+        return
     ip = "127.0.0.1"
     good = 0
     for label, path in (("面板页面", "/"), ("topology API", "/api/topology")):

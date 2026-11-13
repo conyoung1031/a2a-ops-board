@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""MBP → Mini 状态上报器 (launchd StartInterval=30s 触发, 跑完即退, 非常驻服务).
+"""工作机 → 值守机 状态上报器 (launchd/systemd timer 触发, 跑完即退, 非常驻服务).
 
-采集 MBP 真实状态 (gateway 探测 / profile 列表 / state.db SQL),
-POST 到 Mini dashboard; MBP 睡眠或关机时上报自然停止, 面板侧按时间戳判离线.
+采集本机真实状态 (gateway 探测 / profile 列表 / state.db SQL), POST 到值守机的
+/api/mbp-push; 本机睡眠或关机时上报自然停止, 面板侧按时间戳判离线.
+
+目标地址优先级: 环境变量 A2A_PUSH_URL > config.panel_url > config.remote.host:web_port
+                > 本机 127.0.0.1:web_port (单机模式)
 """
 import json
+import os
 import re
 import socket
 import sqlite3
@@ -16,7 +20,42 @@ from pathlib import Path
 HOME = Path.home()
 CONF = HOME / ".hermes" / "config.yaml"
 ENV = HOME / ".hermes" / ".env"
-MINI_PUSH = "http://100.110.231.32:7844/api/mbp-push"
+_HERE = Path(__file__).resolve().parent
+
+
+def _load_conf():
+    for cand in (_HERE.parent / "config.json", _HERE / "config.json"):
+        try:
+            if cand.is_file():
+                return json.loads(cand.read_text(encoding="utf-8")) or {}
+        except Exception:
+            continue
+    return {}
+
+
+CONF = _load_conf()
+
+
+def _resolve_push():
+    """上报目标: env > panel_url > remote.host:web_port > 本机(单机)."""
+    env = os.environ.get("A2A_PUSH_URL")
+    if env:
+        return env
+    if CONF.get("panel_url"):
+        return str(CONF["panel_url"]).rstrip("/") + "/api/mbp-push"
+    r = CONF.get("remote") or {}
+    if r.get("host"):
+        return "http://%s:%s/api/mbp-push" % (r["host"], r.get("web_port", 7844))
+    return "http://127.0.0.1:%s/api/mbp-push" % CONF.get("web_port", 7844)
+
+
+PUSH_URL = _resolve_push()
+
+
+def _peer():
+    """对端 (值守机) 地址与 SSH 端口, 供探测项使用; 未配置返回 ("", 22)."""
+    r = CONF.get("remote") or {}
+    return (r.get("host") or "", int(r.get("ssh_port") or 22))
 HERMES_BIN = str(HOME / ".hermes" / "hermes-agent" / "venv" / "bin" / "hermes")
 
 
@@ -44,17 +83,29 @@ def scan_softs():
         "dsh": proc_ok("DeepSeek Harness"),
         "workbuddy": proc_ok("WorkBuddy.app"),
         "syncthing": tcp_ok("127.0.0.1", 8384),
-        "ssh_mini": tcp_ok("100.110.231.32", 22),
+        "peer_ssh": tcp_ok(*(lambda h, p: (h, p) if h else ("127.0.0.1", 22))(*_peer())),
     }
 
 
 def read_token():
-    """MBP 侧 token 在 config.yaml a2a_agents.mac-mini.auth.token (与 Mini .env 共享同值)."""
+    """取 A2A token: env > 任意 a2a_agents.*.auth.token > platforms.a2a.token.
+
+    不绑定具体 profile 名 —— 对端叫什么由用户在 config.yaml 里定.
+    """
+    env = os.environ.get("A2A_BEARER_TOKEN")
+    if env:
+        return env
     try:
-        m = re.search(r"mac-mini:.*?token:\s*(\S+)", CONF.read_text(), re.S)
-        return m.group(1) if m else ""
+        txt = (HOME / ".hermes" / "config.yaml").read_text()
     except Exception:
         return ""
+    m = re.search(r"a2a_agents:(.*?)(?=\n[a-z_]+:|\Z)", txt, re.S)
+    if m:
+        t = re.search(r"token:\s*(\S+)", m.group(1))
+        if t:
+            return t.group(1)
+    t = re.search(r"platforms:(.*?)token:\s*(\S+)", txt, re.S)
+    return t.group(2) if t else ""
 
 
 def timed_get(url, timeout=5):
@@ -180,7 +231,7 @@ def proc_ok(pat):
 def main():
     payload = json.dumps(
         {
-            "gateway": timed_get("http://127.0.0.1:9900/.well-known/agent.json"),
+            "gateway": timed_get((CONF.get("gateway_url") or "http://127.0.0.1:9900").rstrip("/") + "/.well-known/agent.json"),
             "profiles": mbp_profiles(),
             "activity": db_activity(),
             "tasks": recent_tasks(),
@@ -190,7 +241,7 @@ def main():
         ensure_ascii=False,
     ).encode()
     req = urllib.request.Request(
-        MINI_PUSH,
+        PUSH_URL,
         data=payload,
         headers={
             "Content-Type": "application/json",
@@ -200,7 +251,7 @@ def main():
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
-            print("push:", r.status, r.read(120).decode())
+            print("push:", PUSH_URL, r.status, r.read(120).decode())
     except Exception as e:
         print("push failed:", str(e)[:120])
 

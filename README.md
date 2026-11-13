@@ -46,12 +46,24 @@ python3 ~/.hermes/plugins/a2a-ops-board/installer.py
 
 前置条件：本机已运行 Hermes（`hermes` 在 PATH、gateway 默认 9900）。双机模式需要两台机器都装 Hermes 且网络互通（Tailscale 或同网段）。
 
+### 两种角色（谁常开、谁偶尔开机由你定）
+
+装的时候向导会问这台机器在这次协同里的角色 —— **不预设机器名、也不预设数量**：
+
+| 角色 | 谁适合 | 装什么服务 |
+|---|---|---|
+| **值守机** (`role: hub`) | 常开的 Mac mini / Mac Studio / NAS / 云主机 | 面板服务（常驻）+ 每日自检（每天 00:00）|
+| **发单机** (`role: client`) | 偶尔开机的笔记本 | 状态上报（每 30s 推给值守机），不跑面板 |
+| **单机** (`role: single`) | 只有一台机器 | 面板 + 每日自检 |
+
+三台以上也可以：一台值守 + 多台发单，各自跑一遍向导填同一个值守机地址即可。反过来（笔记本值守、台式机发单）同样成立——代码里没有哪台机器"必须"是 Mini 或 MBP。
+
 ### 向导会做什么
 
 1. **扫本机**：探测 gateway 端口（读 `config.yaml` + 探 9900）、读 A2A token（`.env` → `a2a_agents.*.auth.token` → `platforms.a2a.token`）、列 `profiles/*` 并按名字猜角色（`shangshu`→尚书省、`gongbu`→工部…）
 2. **扫对端**：先用 `config.yaml` 里**已配对的 `a2a_agents`**（最准），再用 `tailscale status --json` 列节点并逐个探 `:9900/.well-known/agent.json` 确认是不是 Hermes
-3. **问 6 项**：选对端编号、对端 SSH 端口、对端面板端口、本机显示名、对端显示名、本面板端口（`--yes` 时全部跳过用默认值）
-4. **落盘**：写 `config.json`、建 `data/`、装系统服务（macOS launchd / Linux systemd；`--no-service` 可跳过）
+3. **问 7 项**：选对端编号、**这台机器的角色**、对端 SSH 端口、对端面板端口、本机显示名、对端显示名、本面板端口（`--yes` 时全部跳过用默认值）
+4. **落盘**：写 `config.json`、建 `data/`、按角色装 1-2 个系统服务（macOS launchd / Linux systemd；`--no-service` 可跳过）
 5. **自检**：curl `/` 和 `/api/topology`，两个都通才算装好
 
 非交互：`python3 installer.py --yes`（单机模式）/ `--dry-run`（只扫描打印配置，不写任何文件）。
@@ -63,6 +75,7 @@ python3 ~/.hermes/plugins/a2a-ops-board/installer.py
 ```json
 {
   "mode": "dual",
+  "role": "hub",
   "local_name": "Mini",
   "remote_name": "MBP",
   "web_port": 7844,
@@ -71,7 +84,8 @@ python3 ~/.hermes/plugins/a2a-ops-board/installer.py
   "gateway_port": 9900,
   "remote": { "host": "100.x.x.x", "gateway_port": 9900, "ssh_port": 22, "web_port": 7844 },
   "profiles": { "shangshu": "尚书省", "gongbu": "工部" },
-  "services": { "prefix": "com.hermes" },
+  "orchestration": { "drafter": "zhongshu", "reviewer": "menxia", "dispatcher": "shangshu" },
+  "services": { "prefix": "com.hermes", "web": true, "daily": true, "reporter": false },
   "dashboard_dir": ""
 }
 ```
@@ -83,7 +97,10 @@ python3 ~/.hermes/plugins/a2a-ops-board/installer.py
 | `web_port` / `gateway_url` / `gateway_port` | 面板端口、本机 gateway 地址与端口 |
 | `remote` | 对端地址；`dual` 模式下用于 SSH/端口探测 |
 | `profiles` | profile 名 → 中文角色名映射；没有映射就显示 profile 原名 |
+| `role` | `hub` 值守机 / `client` 发单机 / `single` 单机；只影响装哪些服务 |
+| `orchestration` | `--mode pipeline` 用的三个角色 profile 名（起草/审议/调度）。你的审批架构不叫中书省尚书省就改这里 |
 | `services.prefix` | 系统服务名前缀（默认 `com.hermes`）|
+| `services.web` / `services.daily` / `services.reporter` | 分别控制：面板常驻、每日自检、向对端上报。值守机开前两个，发单机开第三个 |
 | `panel_url` | 编排器把 flow 推给哪台面板。留空 = `http://127.0.0.1:<web_port>`；**双机且编排器跑在另一台时，必须填对端面板地址**（例如 `http://100.x.x.x:7844`），否则编排器推的 flow 到不了面板 |
 | `dashboard_dir` | 账本 / outbox / 报告的存放目录；留空则用插件自带 `data/` |
 
@@ -147,10 +164,14 @@ python3 agent/orchestrator.py "每日自检" --mode daily
 ## 卸载
 
 ```bash
-# macOS
-launchctl unload ~/Library/LaunchAgents/com.hermes.a2a-web.plist
+# macOS（按你装过的服务删，通常是 web / a2a-opt / reporter 中的 1-2 个）
+for s in com.hermes.a2a-web com.hermes.a2a-opt com.hermes.a2a-reporter; do
+  launchctl unload ~/Library/LaunchAgents/$s.plist 2>/dev/null
+done
 # Linux
-systemctl --user disable --now com.hermes.a2a-web
+for s in com.hermes.a2a-web com.hermes.a2a-opt com.hermes.a2a-reporter; do
+  systemctl --user disable --now $s 2>/dev/null
+done
 rm -rf ~/.hermes/plugins/a2a-ops-board
 ```
 
@@ -162,4 +183,5 @@ rm -rf ~/.hermes/plugins/a2a-ops-board
 - **`▶ 演示` 是纯视觉预览**：不产生账本记录、不影响真实状态，播完自动还原
 - **Linux systemd 分支未实测**：代码按 `systemctl --user` 写，但没有真机验证过
 - **Windows**：无服务托管支持，需手动常驻运行 `server/a2a_web.py`
+- **`--mode pipeline` 需要三个 profile**：起草（默认 `zhongshu`）、审议（`menxia`）、调度（`shangshu`）。没有这套审批架构就用 `--mode direct`（只需一个能接活的 agent），或改 `orchestration` 段指向你自己的 profile
 - **对端离线判定 75 秒**：对端 reporter 超过 75s 没上报即视为离线，其对端灯与延迟归零（`MBP_STALE_S`）
