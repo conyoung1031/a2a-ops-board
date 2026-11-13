@@ -589,7 +589,7 @@
   <div class="pill-nav" id="top-tabs">
     <button class="active" data-tab="all">Dashboard</button>
     <button data-tab="wf">Workflow 拓扑</button>
-    <button data-tab="min">Six Ministries 六部</button>
+    <button data-tab="min">Executors 执行体</button>
     <button data-tab="runs">Ledger 账本</button>
     <button data-tab="hosts">Hosts 双机</button>
   </div>
@@ -599,7 +599,7 @@
     <button class="ping-pill" id="pingbtn" onclick="doPing()">● 测试链路 <span id="lat" class="mono" style="margin-left:4px">—</span></button>
     <div class="clockbox">
       <div class="clock" id="clock">--:--:--</div>
-      <div class="upd">SSE 2s/帧 · Mini :7844</div>
+      <div class="upd">SSE 2s/帧 · <span data-h="local">Mini</span> :7844</div>
     </div>
   </div>
 </nav>
@@ -617,11 +617,11 @@
         <div class="seg-pill dark"><div class="fill" id="seg1-bar" style="width:70%"></div><span id="seg1-sub">已完成</span></div>
       </div>
       <div class="seg-item">
-        <div class="seg-lbl"><span>Shooting · Mini 载荷</span><b id="seg2-txt">—%</b></div>
-        <div class="seg-pill orange"><div class="fill" id="seg2-bar" style="width:78%"></div><span id="seg2-sub">尚书 + 六部</span></div>
+        <div class="seg-lbl"><span>Shooting · <span data-h="local">Mini</span> 载荷</span><b id="seg2-txt">—%</b></div>
+        <div class="seg-pill orange"><div class="fill" id="seg2-bar" style="width:78%"></div><span id="seg2-sub">—</span></div>
       </div>
       <div class="seg-item">
-        <div class="seg-lbl"><span>Turnaround · MBP 载荷</span><b id="seg3-txt">—%</b></div>
+        <div class="seg-lbl"><span>Turnaround · <span data-h="remote">MBP</span> 载荷</span><b id="seg3-txt">—%</b></div>
         <div class="seg-pill light"><div class="fill" id="seg3-bar" style="width:22%"></div><span id="seg3-sub">中书 + 门下</span></div>
       </div>
       <div class="seg-item">
@@ -634,11 +634,11 @@
   <div class="kpis">
     <div class="kpi">
       <div class="top"><span class="dot-sm"></span><div class="v" id="k-mini">—</div></div>
-      <div class="k">Mini Gateway</div>
+      <div class="k"><span data-h="local">Mini</span> Gateway</div>
     </div>
     <div class="kpi">
       <div class="top"><div class="v" id="k-mbp">—</div></div>
-      <div class="k">MBP Gateway</div>
+      <div class="k"><span data-h="remote">MBP</span> Gateway</div>
     </div>
     <div class="kpi">
       <div class="top"><div class="v" id="k-lat">—</div></div>
@@ -686,7 +686,7 @@
     <div class="card" id="card-hosts" style="flex:none">
       <div class="card-h"><span class="t">双机节点 · Host Status</span><span class="n">GATEWAY / PROBE</span></div>
       <div class="host">
-        <div class="hh"><span class="dot wait" id="mini-dot"></span><span class="nm">Mac Mini</span><span class="role">· 尚书 + 六部</span><span class="lat wait" id="mini-lat">—</span></div>
+        <div class="hh"><span class="dot wait" id="mini-dot"></span><span class="nm" data-h="local">Mac Mini</span><span class="role" id="local-role">· —</span><span class="lat wait" id="mini-lat">—</span></div>
         <div class="gw"></div>
         <div class="chips" id="mini-chips"></div>
         <div id="mini-metrics"></div>
@@ -720,7 +720,7 @@
       <svg class="edges" id="edges-svg"></svg>
       <div class="wf-inner" id="wf-inner">
       <div id="wf-static" style="display:flex;flex-direction:column;align-items:center;justify-content:space-between;width:100%;flex:1;min-height:0">
-      <div class="fnode stage" data-k="mbp"><div class="no">02</div><span class="work-tag">接活</span><div class="t">MBP 接活</div><div class="d" id="mbp-desc">三德子 · 任务分流</div></div>
+      <div class="fnode stage" data-k="mbp"><div class="no">02</div><span class="work-tag">接活</span><div class="t"><span data-h="remote">MBP</span> 接活</div><div class="d" id="mbp-desc">接单 · 任务分流</div></div>
 
       <div class="branches">
         <div class="branch" id="br-pipe">
@@ -758,9 +758,9 @@
           </div>
         </div>
         <div class="branch" id="br-exec-direct">
-          <div class="b-head g"><b>直达执行</b> · Mini Agent</div>
+          <div class="b-head g"><b>直达执行</b> · <span data-h="local">Mini</span> Agent</div>
           <div class="b-chain">
-            <div class="fnode" data-k="d_exec"><div class="no">07'</div><span class="work-tag">执行中</span><div class="t">Mini Agent</div><div class="d">直接执行</div></div>
+            <div class="fnode" data-k="d_exec"><div class="no">07'</div><span class="work-tag">执行中</span><div class="t"><span data-h="local">Mini</span> Agent</div><div class="d">直接执行</div></div>
           </div>
         </div>
       </div>
@@ -817,6 +817,16 @@ const softShort=n=>{n=String(n??'');if(n.length<=11)return n;
   const head=n.split(/\s+/)[0];return head.length>=4?head:n.slice(0,10)+'…';};
 const esc=s=>String(s??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
 const API=(location.protocol==='http:'||location.protocol==='https:')?location.origin:'http://127.0.0.1:7844';
+let LN='Mini', RN='MBP';   // 本机/对端显示名, 首帧从 /api/topology 的 a2a.localName/remoteName 覆盖
+function applyHostNames(){
+  const rl=document.getElementById('local-role');
+  if(rl&&window._profRoles){
+    const v=Object.values(window._profRoles);
+    rl.textContent = v.length ? '· ' + v.slice(0,2).join(' + ') + (v.length>2?` +${v.length-2}`:'') : '· 单 agent';
+  }
+  document.querySelectorAll('[data-h="local"]').forEach(e=>{e.textContent=LN;});
+  document.querySelectorAll('[data-h="remote"]').forEach(e=>{e.textContent=RN;});
+}
 
 function ago(t){if(!t)return '—';const s=Math.max(0,Date.now()/1000-t);
   if(s<15)return '刚刚';if(s<60)return Math.round(s)+' 秒前';
@@ -889,7 +899,7 @@ function _profItems(t){
     const msgs=(mi.msgs||0)+(mb.msgs||0);
     const last=Math.max(mi.last||0, mb.last||0);
     const active=(mi.active_now||0)+(mb.active_now||0);
-    const hosts=[mi.sessions?'Mini':null, mb.sessions?'MBP':null].filter(Boolean);
+    const hosts=[mi.sessions?LN:null, mb.sessions?RN:null].filter(Boolean);
     const raw=roles[k]||(k==='unknown'?'主会话':k==='default'?'默认':k);
     const tier=/省$/.test(raw)?'省':(/部$/.test(raw)?'部':'');
     const mdl=(PM.mini||{})[k]||(PM.mbp||{})[k]||'';
@@ -932,11 +942,11 @@ function renderSwitchyardExtras(t, local, pend){
   const mbpPct=allSess?(100-miniPct):20;
   $('seg2-txt').textContent=`${miniPct}%`;
   $('seg2-bar').style.width=`${Math.max(18,miniPct)}%`;
-  $('seg2-sub').textContent=`Mini ${miniSum} 会话`;
+  $('seg2-sub').textContent=`${LN} ${miniSum} 会话`;
 
   $('seg3-txt').textContent=`${mbpPct}%`;
   $('seg3-bar').style.width=`${Math.max(18,mbpPct)}%`;
-  $('seg3-sub').textContent=`MBP ${mbpSum} 会话`;
+  $('seg3-sub').textContent=`${RN} ${mbpSum} 会话`;
 
   $('seg4-txt').textContent=String(pend);
   $('seg4-sub').textContent=pend>0?`待回传 ×${pend} 挂起`:'08 信箱清零';
@@ -980,11 +990,12 @@ function renderSwitchyardExtras(t, local, pend){
 }
 
 function render(t){
+  if(t&&t.a2a){LN=t.a2a.localName||LN; RN=t.a2a.remoteName||RN; window._profRoles=t.a2a.profiles||{}; applyHostNames();}
   const m=t.mbp;
   if(!m){
     $('mbp-dot').className='dot bad';$('mbp-lat').textContent='未上线';$('mbp-lat').className='lat bad';
     const fm=$('mbp-fresh');fm.textContent='等待上报…';fm.style.color='var(--dim2)';
-    $('mbp-chips').innerHTML='<span class="offline">MBP 未连接</span>';
+    $('mbp-chips').innerHTML='<span class="offline">'+RN+' 未连接</span>';
     $('mbp-metrics').innerHTML='';$('mbp-panel').style.opacity=.5;
     $('k-mbp').textContent='—';$('k-mbp').className='v bad';
   } else if(m.stale){
@@ -1021,7 +1032,7 @@ function render(t){
   const mbpLive=(m&&m.activity&&!m.activity.error)?Object.values(m.activity).reduce((a,d)=>a+d.active_now,0):0;
   const liveTot=miniLive+mbpLive;
   const kv=$('k-live');kv.textContent=liveTot;kv.className='v'+(liveTot?' ok':'');
-  $('k-live-s').textContent=`MBP ${mbpLive} · Mini ${miniLive}`;
+  $('k-live-s').textContent=`${RN} ${mbpLive} · ${LN} ${miniLive}`;
   $('sys-dot').className='dot '+(ok?'ok':'bad');
   $('sys-text').textContent=ok?'系统运行正常':'gateway 离线';
   $('sys-text').style.color=ok?'var(--fg)':'var(--bad)';
@@ -1073,11 +1084,11 @@ function render(t){
       :(mbpInst||miniInst)?'已安装 · 当前未运行':'未安装';
     const title=`${s.name} · ${s.method}\n${stateTxt}\n本机:${st(miniOn?'on':miniInst?'inst':s.mini===null?'none':'ghost')} / 对端:${st(mbpOn?'on':mbpInst?'inst':s.mbp===null?'none':'ghost')}`;
     return `<div class="conn-item${(!miniInst&&mbpInst)?' remote-only':''}" title="${esc(title)}">
-      <span class="conn-lamp ${mbpCls}"></span><span class="conn-tag">MBP</span>
+      <span class="conn-lamp ${mbpCls}"></span><span class="conn-tag">${RN}</span>
       <span class="${lineCls}"></span>
       <span class="conn-name">${esc(softShort(s.name))}</span>
       <span class="${lineCls}"></span>
-      <span class="conn-tag">Mini</span><span class="conn-lamp ${miniCls}"></span>
+      <span class="conn-tag">${LN}</span><span class="conn-lamp ${miniCls}"></span>
     </div>`;
   }).join('');
   $('softs').innerHTML=softsHtml?'<div class="conn-grid">'+softsHtml+'</div>':'<span class="offline">无数据</span>';
@@ -1096,9 +1107,6 @@ function render(t){
 const KEYMAP={'p_mbp':'mbp','p_zs':'zs','p_mx':'mx','p_a2a':'a2a','p_ss':'ss','p_six':'six',
               'd_mbp':'mbp','d_disp':'d_disp','d_a2a':'a2a','d_exec':'d_exec'};
 const PRI={'pending':0,'done':1,'blocked':2,'running':3};
-const STEP_LABELS={'mbp':['02','MBP 接活'],'zs':['03','中书省 · 起草'],'mx':['04','门下省 · 审核'],
-  'd_disp':["04'",'直达派发'],'a2a':['05','A2A 跨机派发'],'ss':['06','尚书省 · 调度'],
-  'six':['07','六部执行'],'d_exec':["07'",'Mini Agent 执行'],'ret':['08','结果回传']};
 let runs=[];
 let lastFlowKey=null;
 
@@ -1453,13 +1461,13 @@ function renderFlow(f, local, pendRaw){
     else if(st==='blocked')n.classList.add('blocked');
     if(n.dataset.k==='ret'){
       const d=$('ret-desc');
-      if(d)d.textContent=susp?`待回传 ×${pend} · MBP 离线挂起`:'汇总呈报';
+      if(d)d.textContent=susp?`待回传 ×${pend} · ${RN} 离线挂起`:'汇总呈报';
     }
   });
   const PM=window.__profModel||{mbp:{},mini:{}};
   const setT=(k,host,name)=>{const n=document.querySelector(`.fnode[data-k="${k}"]`);
     const mdl=(PM[host]||{})[name];
-    if(n&&mdl)n.title=`${host==='mbp'?'MBP':'Mini'}/${name} · ${mdl}`;};
+    if(n&&mdl)n.title=`${host==='mbp'?RN:LN}/${name} · ${mdl}`;};
   setT('mbp','mbp','default'); setT('zs','mbp','zhongshu'); setT('mx','mbp','menxia');
   setT('ss','mini','shangshu'); setT('d_exec','mini','default');
   const mbpNode=document.querySelector('.wf .fnode[data-k="mbp"]');
@@ -1468,7 +1476,7 @@ function renderFlow(f, local, pendRaw){
     if(mbpNode)mbpNode.classList.add('active');
     if(mbpDesc)mbpDesc.textContent=`本机直跑 ×${lm} · 5分钟内活跃 · 未跨机`;
   }else if(mbpDesc){
-    mbpDesc.textContent='三德子 · 任务分流';
+    mbpDesc.textContent='接单 · 任务分流';
   }
   const MIN_MAP={'吏部':'lihu','户部':'hubu','礼部':'libu','兵部':'bingbu','刑部':'xingbu','工部':'gongbu'};
   const sixSt=agg['six']||'pending';
@@ -1482,7 +1490,7 @@ function renderFlow(f, local, pendRaw){
     const recentDone=!!(d&&!profActive&&d.last&&(nowS-d.last)<900);
     const mentioned=txt.includes(zh);
     const mdl=(PM.mini||{})[prof];
-    if(mdl)ch.title=`Mini/${prof} · ${mdl}`+(d?` · ${d.sessions}会话 · 最后活动${Math.max(0,Math.round((nowS-d.last)/60))}分钟前`:'');
+    if(mdl)ch.title=`${LN}/${prof} · ${mdl}`+(d?` · ${d.sessions}会话 · 最后活动${Math.max(0,Math.round((nowS-d.last)/60))}分钟前`:'');
     ch.classList.remove('run','done');
     if(profActive||(mentioned&&sixSt==='running'))ch.classList.add('run');
     else if(recentDone||(mentioned&&sixSt==='done'))ch.classList.add('done');
@@ -1499,7 +1507,7 @@ function renderFlow(f, local, pendRaw){
   }
   if(!f||!f.nodes){
     $('tl').innerHTML=lw
-      ? `<div class="empty">无编排事件 · 本机任务（5 分钟内活跃）MBP ${lm} · Mini ${li}</div>`
+      ? `<div class="empty">无编排事件 · 本机任务（5 分钟内活跃）${RN} ${lm} · ${LN} ${li}</div>`
       : '<div class="empty">等待编排器事件…</div>';
     $('tl-mode').textContent=lw?'本机活跃':'空闲';
     return;
@@ -1513,8 +1521,8 @@ const SRC_BADGE={
   'im':{cls:'im', tag:'IM'},
   'selfopt':{cls:'self', tag:'自优化'},
   'daily':{cls:'self', tag:'自优化'},
-  'local-mbp':{cls:'local', tag:'本地·MBP'},
-  'local-mini':{cls:'local', tag:'本地·Mini'},
+  'local-mbp':{cls:'local', tag:'本地·'+RN},
+  'local-mini':{cls:'local', tag:'本地·'+LN},
 };
 function badgeFor(src, mode){
   if(src==='orchestrator') return mode==='pipeline'?{cls:'pipe',tag:'编排'}:{cls:'dir',tag:'直达'};
@@ -1553,13 +1561,13 @@ function renderRuns(local, ledger){
   const top=items.slice(0,_cap);
   const nB=local?(local.mbpWarm||0):0, nI=local?(local.miniWarm||0):0;
   const ledN=(ledger||[]).length;
-  $('runs-n').textContent=`账本${ledN} · MBP×${nB} Mini×${nI} · 点击看全文`;
+  $('runs-n').textContent=`账本${ledN} · ${RN}×${nB} ${LN}×${nI} · 点击看全文`;
   window.__runItems=top;
   $('runs').innerHTML=top.length?top.map((r,i)=>{
     const title=`${r.task}`;
     return `<div class="run" data-i="${i}"${r.stale?' style="opacity:.6"':''}>
       <span class="mode ${r.cls}">${esc(r.tag)}</span>
-      ${r.pend?`<span class="pend" title="delivery_status=pending_mbp · 等 MBP 上线回传">待回传</span>`:''}
+      ${r.pend?`<span class="pend" title="delivery_status=pending · 等 ${RN} 上线回传">待回传</span>`:''}
       ${r.st?`<span class="st-dot ${r.st==='done'?'done':r.st==='failed'?'failed':r.st==='stalled'?'stalled':'running'}" title="${esc(r.st)}"></span>`:''}
       ${r.arrow?`<span class="host-arrow"><b>${esc(r.arrow.split('→')[0])}</b>→${esc(r.arrow.split('→')[1]||'')}</span>`:''}
       <span class="tk" title="${esc(title)}">${r.live?'<span class="ldot"></span>':''}${esc(mask5(r.task))}</span>
@@ -1581,7 +1589,7 @@ function openRun(i){
     meta.push(['任务ID',r.id||'—'],['状态',r.stt||r.st||'—'],['来源',r.src||'—'],
               ['派发→执行',r.arrow||'—'],['更新',hm(r.updated)]);
     if(r.delivered)meta.push(['交付',`${r.delivered} · delivered`]);
-    if(r.pend)meta.push(['交付态','pending_mbp · MBP 离线挂起']);
+    if(r.pend)meta.push(['交付态','pending_mbp · '+RN+' 离线挂起']);
   }else{
     meta.push(['来源机',r.arrow||'—'],['时间',hm(r.at)]);
   }
