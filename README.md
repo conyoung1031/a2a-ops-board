@@ -20,12 +20,17 @@ number comes from your own `state.db`, your task ledger, or a live network probe
 ## 安装
 
 ```bash
-# 1. 放进 Hermes 插件目录
-git clone <repo> ~/.hermes/plugins/a2a-ops-board
+# 方式 A: 一条命令装插件
+hermes plugins install conyoung1031/a2a-ops-board
 
-# 2. 跑安装向导（会扫描你的环境，几乎全自动）
+# 方式 B: 手动 clone
+git clone https://github.com/conyoung1031/a2a-ops-board ~/.hermes/plugins/a2a-ops-board
+
+# 然后跑安装向导（会扫描你的环境，几乎全自动）
 python3 ~/.hermes/plugins/a2a-ops-board/installer.py
 ```
+
+前置条件：本机已跑 Hermes（`hermes` 在 PATH、gateway 在 9900）。双机模式需要两台机器都装 Hermes 且能互通（Tailscale 或同网段）。
 
 向导会：
 
