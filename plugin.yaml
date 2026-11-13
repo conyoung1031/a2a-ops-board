@@ -1,0 +1,15 @@
+name: a2a-ops-board
+label: A2A Ops Board
+kind: standalone
+version: 0.1.0
+author: dasheng
+description: >
+  Local-first operations dashboard for Hermes A2A fleets. Shows real-time session
+  activity across all profiles, a live workflow topology (orchestrator stages), a
+  dual-host swimlane timeline with true per-task durations, software interlink
+  probes (SSH / Syncthing / gateway / agent CLIs) and an offline result Outbox.
+  Ships its own SQLite history layer (flow events, probe samples, ledger mirror) —
+  zero mock data, reads your local state.db read-only.
+requires_hermes: ">=0.22.0"
+provides_tools: []
+provides_hooks: []

@@ -1,0 +1,1683 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="A2A 运控台">
+<meta name="theme-color" content="#f3f1ec">
+<title>A2A 运控台 · Switchyard Stage</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* v25 · Switchyard 胶囊 Bento 款 · 护眼暖纸底 #f3f1ec + 深炭黑 #18181b + 活力橙 #f25c2a 高对比 */
+  :root{
+    --bg:#f3f1ec;
+    --card:#faf8f4;
+    --card2:#efece6;
+    --dark:#18181b;
+    --dark2:#242429;
+    --dark-line:rgba(255,255,255,.1);
+    --fg:#1e1d1b;
+    --dim:#5a5650;
+    --dim2:#8a857d;
+    --orange:#f25c2a;
+    --orange-soft:rgba(242,92,42,.13);
+    --line:rgba(40,36,32,.11);
+    --line2:rgba(40,36,32,.06);
+    --conn:#9a958c;
+    --ok:#1d7a4d;
+    --bad:#c93a3a;
+    --warn:#d97706;
+    --blue:#2563c9;
+    --blue-t:#1d4fb8;
+    --cyan:#0e7490;
+    --ring:0 0 0 1px rgba(40,36,32,.08);
+    --elev:0 4px 16px -4px rgba(30,26,22,.06), 0 1px 3px rgba(30,26,22,.04);
+    --sans:'Geist',system-ui,-apple-system,'PingFang SC','Segoe UI',sans-serif;
+    --mono:'Geist Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden}
+  body{
+    background:var(--bg);color:var(--fg);font-family:var(--sans);
+    font-size:13px;line-height:1.5;display:flex;flex-direction:column;
+  }
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .card{
+    background:var(--card);border-radius:18px;
+    box-shadow:var(--ring),var(--elev);min-height:0;
+    transition:transform .2s,box-shadow .2s;
+  }
+  .card-h{
+    display:flex;align-items:center;gap:8px;
+    padding:9px 15px 7px;border-bottom:1px solid var(--line2);
+  }
+  .card-h .t{font-size:12px;font-weight:600;letter-spacing:-.1px;color:var(--fg)}
+  .card-h .n{margin-left:auto;flex:none;white-space:nowrap;font-family:var(--mono);font-size:9.5px;color:var(--dim2);letter-spacing:.6px}
+
+  /* ── 1. 顶部居中圆角胶囊导航栏 (Switchyard Top Pill Nav) ── */
+  .nav{
+    flex:none;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;
+    padding:8px clamp(16px,2vw,26px);
+  }
+  .nav-left{display:flex;align-items:center;gap:8px}
+  .brand-pill{
+    display:inline-flex;align-items:center;gap:7px;
+    background:var(--card);box-shadow:var(--ring),var(--elev);
+    border-radius:9999px;padding:5px 13px;font-size:12px;font-weight:600;color:var(--fg);
+  }
+  .brand-pill .bdot{width:7px;height:7px;border-radius:50%;background:var(--orange)}
+  .ver{
+    font-family:var(--mono);font-size:10px;color:var(--dim);
+    background:var(--card2);border-radius:9999px;padding:2px 8px;font-weight:600;
+  }
+  /* 居中胶囊菜单条 */
+  .pill-nav{
+    display:inline-flex;align-items:center;gap:3px;
+    background:var(--card);box-shadow:var(--ring),var(--elev);
+    border-radius:9999px;padding:4px;
+  }
+  .pill-nav button{
+    border:none;background:transparent;color:var(--dim);
+    font-family:inherit;font-size:12px;font-weight:500;
+    padding:5px 14px;border-radius:9999px;cursor:pointer;
+    transition:all .2s cubic-bezier(.2,.8,.2,1);white-space:nowrap;
+  }
+  .pill-nav button:hover{color:var(--fg)}
+  .pill-nav button.active{
+    background:var(--dark);color:#fff;font-weight:600;
+    box-shadow:0 2px 6px rgba(0,0,0,.18);
+  }
+  .nav-right{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:500;
+    background:var(--card);box-shadow:var(--ring);border-radius:9999px;padding:4px 11px;color:var(--dim);
+  }
+  .pill .dot{width:6px;height:6px;border-radius:50%}
+  .ping-pill{
+    border:none;background:var(--card);box-shadow:var(--ring);color:var(--fg);
+    border-radius:9999px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;
+    font-family:inherit;transition:all .15s;
+  }
+  .ping-pill:hover:not(:disabled){background:var(--dark);color:#fff}
+  .ping-pill:disabled{opacity:.45;cursor:default}
+  .clockbox{text-align:right;line-height:1.15}
+  .clock{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--fg)}
+  .upd{color:var(--dim2);font-size:9.5px}
+
+  /* ── 2. Hero 迎宾条 + 四段式黑白橙胶囊进度条 + 右侧超大号数字 KPI ── */
+  .hero-strip{
+    flex:none;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;
+    padding:2px clamp(16px,2vw,26px) 8px;
+  }
+  .hero-left{flex:1;min-width:0;max-width:780px}
+  .hero-title-row{display:flex;align-items:baseline;gap:12px;margin-bottom:5px}
+  .hero-title{font-size:22px;font-weight:700;letter-spacing:-.5px;color:var(--fg);line-height:1.15}
+  .hero-sub{font-family:var(--mono);font-size:11px;color:var(--dim2)}
+  .seg-wrap{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .seg-item{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .seg-lbl{display:flex;justify-content:space-between;font-size:10.5px;color:var(--dim);font-weight:500}
+  .seg-lbl b{font-family:var(--mono);color:var(--fg);font-weight:600}
+  .seg-pill{
+    height:22px;border-radius:9999px;display:flex;align-items:center;padding:0 10px;
+    font-family:var(--mono);font-size:10px;font-weight:600;
+    overflow:hidden;position:relative;box-shadow:inset 0 0 0 1px rgba(40,36,32,.1);
+    background:var(--card2);color:var(--dim);
+  }
+  .seg-pill .fill{
+    position:absolute;left:0;top:0;bottom:0;border-radius:9999px;
+    transition:width .4s cubic-bezier(.2,.8,.2,1);
+  }
+  .seg-pill span{position:relative;z-index:1}
+  .seg-pill.dark .fill{background:var(--dark)}
+  .seg-pill.dark{color:#fff;background:#2e2e33}
+  .seg-pill.orange .fill{background:var(--orange)}
+  .seg-pill.orange{color:#fff;background:rgba(242,92,42,.28)}
+  .seg-pill.light .fill{background:#d8d3c8}
+  .seg-pill. hatched{
+    background:repeating-linear-gradient(-45deg,rgba(40,36,32,.06),rgba(40,36,32,.06) 4px,transparent 4px,transparent 8px);
+  }
+  /* 右侧超大号数字 KPI */
+  .kpis{display:flex;align-items:flex-end;gap:22px;flex:none}
+  .kpi{display:flex;flex-direction:column;align-items:flex-end}
+  .kpi .top{display:flex;align-items:baseline;gap:4px}
+  .kpi .dot-sm{width:6px;height:6px;border-radius:50%;background:var(--orange);display:inline-block;margin-right:3px;vertical-align:middle}
+  .kpi .v{font-family:var(--sans);font-size:28px;font-weight:700;letter-spacing:-1px;line-height:1;color:var(--fg)}
+  .kpi .v small{font-size:11px;color:var(--dim2);font-weight:500;letter-spacing:0;margin-left:2px}
+  .kpi .v.ok{color:var(--fg)}
+  .kpi .v.bad{color:var(--bad)}
+  .kpi .k{font-size:10px;font-weight:500;color:var(--dim2);margin-top:3px}
+  .kpi .s{display:none}
+
+  /* ── 3. Bento 主网格 (左列 Bento 卡 + 中工作流 + 右深色巡检长卡) ── */
+  .main{
+    flex:1;min-height:0;display:grid;
+    grid-template-columns:392px 1fr 316px;gap:12px;
+    padding:0 clamp(16px,2vw,26px) 8px;
+  }
+  .col{display:flex;flex-direction:column;gap:10px;min-height:0;overflow-y:auto}
+  .col::-webkit-scrollbar{width:6px}
+  .col::-webkit-scrollbar-thumb{background:rgba(0,0,0,.14);border-radius:4px}
+
+  /* 左上双卡并排: 竖柱图 + 环形表盘 */
+  .bento-pair{display:grid;grid-template-columns:1.15fr 1fr;gap:10px;flex:none}
+  .bento-mini{padding:10px 13px;display:flex;flex-direction:column;justify-content:space-between;min-height:126px}
+  .bm-head{display:flex;align-items:center;justify-content:space-between;font-size:11px;font-weight:600;color:var(--dim)}
+  .bm-big{font-size:22px;font-weight:700;letter-spacing:-.6px;color:var(--fg);margin:2px 0 4px;font-family:var(--sans)}
+  .bm-big small{font-size:11px;font-weight:500;color:var(--dim2);margin-left:4px}
+  /* 竖向胶囊柱状图 */
+  .vbars{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;align-items:end;height:56px;padding-top:4px}
+  .vbar-col{display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end}
+  .vbar-track{width:100%;max-width:14px;height:48px;background:var(--card2);border-radius:999px;display:flex;align-items:flex-end;overflow:hidden;padding:1px}
+  .vbar-fill{width:100%;border-radius:999px;background:var(--dark);min-height:4px;transition:height .35s}
+  .vbar-fill.peak{background:var(--orange)}
+  .vbar-lbl{font-family:var(--mono);font-size:8.5px;color:var(--dim2);text-transform:uppercase}
+  /* 环形表盘 (Setup timer 同款) */
+  .dial-wrap{display:flex;align-items:center;justify-content:center;position:relative;height:74px;margin:2px 0}
+  .dial-svg{width:84px;height:84px;transform:rotate(-90deg)}
+  .dial-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+  .dial-val{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--fg);line-height:1.1}
+  .dial-sub{font-size:9px;color:var(--dim2);margin-top:1px}
+  .dial-foot{display:flex;align-items:center;justify-content:space-between;font-size:10px;color:var(--dim2);border-top:1px solid var(--line2);padding-top:4px}
+
+  /* 主机状态卡 (极简双机对比, 去掉与右列重复的9个胶囊堆叠) */
+  .host{padding:7px 14px}
+  .host + .host{border-top:1px solid var(--line2)}
+  .hh{display:flex;align-items:center;gap:7px}
+  .hh .nm{font-size:12px;font-weight:600;color:var(--fg)}
+  .hh .role{font-size:10.5px;color:var(--dim2)}
+  .hh .lat{margin-left:auto;font-family:var(--mono);font-size:11px;font-weight:600;color:var(--fg);background:var(--card2);padding:1px 8px;border-radius:999px}
+  .hh .lat.bad{color:var(--orange)}
+  .gw{display:none}
+  .dot{width:6px;height:6px;border-radius:50%;flex:none}
+  .dot.ok{background:var(--dark)} .dot.bad{background:var(--bad)} .dot.wait{background:var(--dim2)}
+  .dot.live{background:var(--ok);box-shadow:0 0 0 2px rgba(29,122,77,.18),0 0 6px rgba(29,122,77,.55);
+    animation:breath 1.9s ease-in-out infinite}   /* 系统正常: 绿色呼吸灯 */
+  .chips{display:none}
+  .hmetric{display:flex;justify-content:space-between;font-size:10.5px;padding:2px 0 0;color:var(--dim2)}
+  .hmetric .v{font-family:var(--mono);color:var(--dim)}
+  .offline{font-size:10.5px;color:var(--dim2)}
+  .flash{color:var(--orange)}
+
+  /* 联动软件行 (v25.3: 双端连接图 — 一端在线红灯警示, 两端在线绿灯, 两端通虚线流动) */
+  .softrow{display:flex;align-items:center;gap:8px;padding:5px 14px;border-top:1px solid var(--line2)}
+  .softrow .k{font-size:10.5px;color:var(--dim);flex:none;font-weight:500;line-height:1.3}
+  .softrow .k small{display:block;font-size:8.5px;color:var(--dim2);font-weight:400}
+  .softcnt{display:block;font-family:var(--mono);font-size:8px;color:var(--dim2);font-weight:400}
+  .softrow #softs{flex:1;min-width:0}
+  .conn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(124px,1fr));gap:3px 6px;flex:1;min-width:0}
+  .conn-item{
+    display:flex;align-items:center;gap:2px;padding:1.5px 5px;min-width:0;
+    border-radius:9px;background:var(--card2);cursor:help;
+  }
+  .conn-lamp{
+    width:7px;height:7px;border-radius:50%;flex:none;
+    border:1.5px solid rgba(40,36,32,.2);background:transparent;
+  }
+  .conn-lamp.on-green{background:var(--ok);border-color:var(--ok)}
+  .conn-lamp.on-red{background:var(--bad);border-color:var(--bad);animation:breath 1.6s infinite}
+  .conn-lamp.inst{background:transparent;border-color:rgba(40,36,32,.42)}   /* 装了但未运行 */
+  .conn-item.remote-only{opacity:.72}                                        /* 只有对端装了 */
+  .conn-lamp.ghost{border-color:rgba(40,36,32,.14)}                          /* 未装 */
+  .conn-tag{display:none}
+  .conn-name{font-size:9.5px;font-weight:600;color:var(--fg);flex:1;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .conn-line{
+    flex:0 0 15px;height:2px;border-radius:2px;
+    background:repeating-linear-gradient(90deg, rgba(40,36,32,.22) 0 4px, transparent 4px 8px);
+  }
+  .conn-line.flow{
+    background:repeating-linear-gradient(90deg, #22a06b 0 5px, transparent 5px 10px);
+    background-size:10px 100%;
+    animation:dashslide .6s linear infinite;
+  }
+  @keyframes dashslide{to{background-position:10px 0}}
+
+  /* 甘特胶囊风格运行记录 (严格黑白橙三色, 消灭花花绿绿) */
+  .grow{flex:1;min-height:0;display:flex;flex-direction:column}
+  .grow .body{overflow-y:auto;min-height:68px;flex:1;padding:6px 10px 8px}
+  .grow .body::-webkit-scrollbar{width:6px}
+  .grow .body::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px}
+  .run{
+    display:flex;align-items:center;gap:8px;padding:6px 11px;margin-bottom:5px;
+    border-radius:9999px;background:#fff;box-shadow:0 1px 2px rgba(30,26,22,.04),0 0 0 1px rgba(40,36,32,.07);
+    transition:all .15s;
+  }
+  .run:last-child{margin-bottom:0}
+  .run:hover{background:var(--dark);color:#fff}
+  .run:hover .tk,.run:hover .tm,.run:hover .host-arrow,.run:hover .host-arrow b{color:#fff}
+  .run:hover .mode.local,.run:hover .mode.self,.run:hover .mode.dir{background:rgba(255,255,255,.16);color:#fff}
+  .run .mode{font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.2px;border-radius:9999px;padding:2px 8px;flex:none}
+  .run .mode.pipe{background:var(--dark);color:#fff}
+  .run .mode.dir{background:transparent;border:1px solid var(--dark);color:var(--fg)}
+  .run .mode.local{background:var(--card2);color:var(--fg)}
+  .run .mode.im{background:var(--orange);color:#fff}
+  .run .mode.self{background:transparent;border:1px solid var(--line);color:var(--dim)}
+  .run .host-arrow{font-family:var(--mono);font-size:9.5px;color:var(--dim2);flex:none;white-space:nowrap}
+  .run .host-arrow b{color:var(--fg);font-weight:600}
+  .run .st-dot{width:6.5px;height:6.5px;border-radius:50%;flex:none;background:var(--dim2)}
+  .run .st-dot.done{background:var(--dark)} .run .st-dot.failed{background:var(--orange)}
+  .run .st-dot.running{background:var(--orange);animation:breath 1.2s infinite}
+  .run .st-dot.stalled{background:var(--orange);animation:breath 2.4s infinite}
+  .run .ldot{display:inline-block;width:6px;height:6px;border-radius:50%;
+    background:var(--orange);margin-right:5px;vertical-align:-1px;animation:breath 1.2s infinite}
+  .run .tk{flex:1;font-size:11.5px;color:var(--fg);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .run .tm{font-family:var(--mono);font-size:10px;color:var(--dim2);flex:none}
+  .run .pend{font-family:var(--mono);font-size:9px;font-weight:600;flex:none;
+    border-radius:9999px;padding:1.5px 7px;white-space:nowrap;
+    background:var(--orange);color:#fff;animation:breath 1.8s ease-in-out infinite}
+  .run[data-i]{cursor:pointer}
+  .empty{padding:12px;text-align:center;font-size:11.5px;color:var(--dim2)}
+
+  /* ── 中间: 纵向工作流拓扑 (工业级等宽工位轨道 + 16px CAD 点阵底纹, 消灭参差与死白) ── */
+  .wfcard{display:flex;flex-direction:column;min-height:0}
+  .wf{
+    flex:1;min-height:0;overflow:hidden;padding:18px 20px 8px;position:relative;
+    background-image:radial-gradient(rgba(40,36,32,.10) 1px, transparent 1px);
+    background-size:16px 16px;
+  }
+  /* v26.4: 内层缩放容器 — fitWorkflow 用 zoom 按可用高度整体缩放, 泳道区不被挤 */
+  .topo-sw{margin-left:8px;flex:none;border:1px solid var(--line2);background:var(--card2);
+    color:var(--dim);border-radius:9999px;font-size:10px;line-height:1;padding:3px 7px;cursor:pointer}
+  .topo-sw:hover{color:var(--orange);border-color:var(--orange)}
+  .wf-chain{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;align-items:center;max-width:min(560px,96%)}
+  .wf-chip{min-width:auto!important;display:flex;flex-direction:row!important;align-items:center;gap:5px;
+    padding:6px 11px!important;border-radius:9999px;cursor:help}
+  .wf-chip.2 .t{font-size:11px}
+  .wf-chip-t{font-size:11px;font-weight:600;color:var(--ink);white-space:nowrap}
+  .wf-lamp{width:7px;height:7px;border-radius:50%;flex:none;border:1.5px solid rgba(40,36,32,.2);background:transparent}
+  .wf-lamp.on-green{background:#22a06b;border-color:#22a06b}
+  .wf-lamp.on-red{background:#e05252;border-color:#e05252;animation:breath 1.6s infinite}
+  .wf-lamp.inst{border-color:rgba(40,36,32,.42)}
+  .wf-side{font-family:var(--mono);font-size:8px;color:var(--dim2);display:flex;gap:10px;flex-wrap:wrap;
+    justify-content:center;margin-top:2px}
+  .wf-side-item{white-space:nowrap}
+  .wf-empty{font-size:10px;color:var(--dim);text-align:center;line-height:1.7}
+  .wf-empty span{font-size:8.5px;color:var(--dim2)}
+  .edges path.edge.dyn{stroke:#c9c3b8;stroke-width:1.6}
+  .wf-inner{
+    display:flex;flex-direction:column;align-items:center;justify-content:space-between;
+    min-height:100%;position:relative;z-index:1;
+  }
+  /* 管道粒子 (沿 live 边流动) */
+  #edges-svg circle.ep{fill:var(--orange);opacity:.85}
+  .wf .edges{position:absolute;top:0;left:0;pointer-events:none;z-index:0}
+
+  .wf .fnode{z-index:1;position:relative}
+  .edges path.edge{fill:none;stroke:#b8b2a8;stroke-width:1.85}
+  .edges path.edge.live{stroke:rgba(242,92,42,.15);stroke-width:1.3;stroke-dasharray:none;animation:none}
+  /* v29 液态粒子流: 沿路径排列的极小字符 */
+  .edges text.liquid{font-family:var(--mono);font-size:3.8px;font-weight:700;letter-spacing:.1px;
+    fill:var(--orange);pointer-events:none;dominant-baseline:middle;
+    filter:drop-shadow(0 0 1.4px rgba(242,92,42,.75))}
+  .edges text.liquid tspan{animation:liqFlick .82s ease-in-out infinite alternate}
+  /* 已完成边: 暗色稀疏余流 (数据流过后的痕迹, 一路到 08 不断) */
+  .edges text.liquid.done-flow{font-size:3.2px;fill:rgba(242,92,42,.85);letter-spacing:.25px;
+    filter:drop-shadow(0 0 .9px rgba(242,92,42,.45))}
+  .edges text.liquid.done-flow tspan{animation:liqFlickDone 1.6s ease-in-out infinite alternate}
+  @keyframes liqFlickDone{from{opacity:.14}to{opacity:.62}}
+  @keyframes liqFlick{from{opacity:.22}to{opacity:1}}
+  .edges path.edge.live{stroke:rgba(242,92,42,.22)}
+  .edges path.edge.done{stroke:var(--dark);stroke-width:2.1}
+  @keyframes dashdraw{to{stroke-dashoffset:-16}}
+  /* 上中下三道主干关口 (02 / 05 / 08): 横向舒展标准宽幅胶囊工位卡, 消灭两侧大片空白 */
+  .wf .fnode.stage{
+    width:min(480px, 88%);min-width:280px;
+    display:flex;align-items:center;gap:10px;
+    padding:9px 16px;border-radius:14px;
+    background:#fff;border:1px solid rgba(40,36,32,.14);
+    box-shadow:0 3px 10px -2px rgba(30,26,22,.06);
+  }
+  .wf .fnode.stage .no{
+    margin:0;width:26px;height:26px;border-radius:8px;flex:none;
+    background:var(--card2);color:var(--fg);font-weight:700;font-size:10px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .wf .fnode.stage .t{font-size:13px;font-weight:700;margin:0;flex:none}
+  .wf .fnode.stage .d{
+    margin:0 0 0 auto;max-width:none;text-align:right;font-family:var(--mono);font-size:10.5px;
+    color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  /* 左右双分支严格 1:1 等宽等高对称轨道 */
+  .wf .branches{
+    display:grid;grid-template-columns:1fr 1fr;
+    gap:calc(16px * var(--wfs,1));width:100%;max-width:760px;align-items:stretch;
+  }
+  .wf .branch{
+    border:1px solid rgba(40,36,32,.11);border-radius:16px;
+    padding:calc(10px * var(--wfs,1)) calc(12px * var(--wfs,1));
+    background:rgba(245,242,236,.82);backdrop-filter:blur(4px);
+    display:flex;flex-direction:column;justify-content:space-between;
+    transition:all .2s;
+  }
+  .wf .branch.on{border-color:var(--dark);background:rgba(24,24,27,.04);box-shadow:inset 0 0 0 1px var(--dark)}
+  .wf .b-head{
+    font-family:var(--mono);font-size:max(9.5px,calc(10px * var(--wfs,1)));
+    color:var(--dim2);letter-spacing:.3px;margin-bottom:calc(8px * var(--wfs,1));
+    display:flex;align-items:center;justify-content:space-between;
+    padding-bottom:5px;border-bottom:1px dashed rgba(40,36,32,.1);
+  }
+  .wf .b-head b{color:var(--fg);font-weight:600}
+  .wf .b-head.g b{color:var(--fg)}
+  /* 分支内部节点统一等高横向排布 */
+  .wf .b-chain{display:flex;align-items:stretch;justify-content:center;gap:18px;flex-wrap:nowrap;flex:1}
+  .wf .b-chain .fnode + .fnode{margin-left:0}
+  .wf .b-chain .fnode{
+    flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;
+    position:relative;border:1px solid rgba(40,36,32,.11);background:#fff;border-radius:12px;
+    padding:calc(8px * var(--wfs,1)) calc(12px * var(--wfs,1));
+    transition:all .2s;box-shadow:0 2px 6px rgba(30,26,22,.04);
+  }
+  .wf .fnode .no{font-family:var(--mono);font-size:9px;color:var(--dim2);letter-spacing:.5px;margin-bottom:2px;font-weight:600}
+  .wf .fnode .t{font-weight:600;font-size:max(11.5px,calc(12.5px * var(--wfs,1)));white-space:nowrap;color:var(--fg)}
+  .wf .fnode .d{font-size:max(9px,calc(9.5px * var(--wfs,1)));color:var(--dim2);margin-top:2px;line-height:1.3;
+    max-width:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wf .sixbox{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:5px}
+  .wf .mchip{font-size:9.5px;text-align:center;border:1px solid var(--line);border-radius:6px;
+    padding:2px 4px;color:var(--dim);background:var(--card2);transition:all .2s;cursor:help;font-weight:500;white-space:nowrap}
+  .wf .mchip.run{border-color:var(--orange);color:#fff;background:var(--orange);
+    font-weight:600;animation:breath 1.2s infinite}
+  .wf .mchip.done{border-color:var(--dark);color:#fff;background:var(--dark);font-weight:500}
+  @property --ang{syntax:'<angle>';initial-value:0deg;inherits:false}
+  .wf .fnode.active{border-color:var(--orange);background:#fff;box-shadow:0 0 0 2px rgba(242,92,42,.25),var(--elev)}
+  .wf .fnode.stage.active .no{background:var(--orange);color:#fff}
+  .wf .fnode .work-tag{position:absolute;top:-8px;right:10px;font-size:8.5px;letter-spacing:.4px;
+    color:#fff;background:var(--orange);border-radius:999px;padding:1px 7px;font-weight:600;display:none;z-index:2}
+  .wf .fnode.active .work-tag{display:block;animation:breath 1.4s infinite}
+  .wf .fnode.done{border-color:var(--dark);background:var(--dark);color:#fff}
+  .wf .fnode.stage.done .no{background:var(--orange);color:#fff}
+  .wf .fnode.done .no{color:var(--orange)}
+  .wf .fnode.done .t{color:#fff}
+  .wf .fnode.done .d{color:rgba(255,255,255,.72)}
+  .wf .fnode.blocked{border-color:var(--bad);background:rgba(201,58,58,.08)}
+  .wf .fnode.blocked .t{color:var(--bad)}
+  .wf .fnode.susp{border-color:var(--orange);background:var(--orange-soft);
+    animation:breath 1.6s ease-in-out infinite}
+  .wf .fnode.susp .no,.wf .fnode.susp .t,.wf .fnode.susp .d{color:var(--orange);font-weight:600}
+  @keyframes breath{50%{opacity:.55}}
+
+  /* ── 4. 右列: 深炭黑对比长卡 (Switchyard Dark Checklist Card) ── */
+  .dark-col{display:flex;flex-direction:column;gap:10px;min-height:0}
+  .readiness-card{padding:11px 14px;flex:none}
+  .rd-top{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:6px}
+  .rd-top .lbl{font-size:11.5px;font-weight:600;color:var(--fg)}
+  .rd-top .pct{font-family:var(--sans);font-size:18px;font-weight:700;color:var(--fg)}
+  .rd-bars{display:grid;grid-template-columns:1.2fr 1fr .8fr;gap:5px}
+  .rd-bar{height:20px;border-radius:7px;display:flex;align-items:center;padding:0 8px;font-family:var(--mono);font-size:9.5px;font-weight:600}
+  .rd-bar.b-orange{background:var(--orange);color:#fff}
+  .rd-bar.b-dark{background:var(--dark);color:#fff}
+  .rd-bar.b-muted{background:var(--card2);color:var(--dim)}
+
+  .dark-card{
+    flex:1;min-height:0;color:#f4f4f6;position:relative;overflow:hidden;
+    background:
+      radial-gradient(120% 65% at 95% -5%, rgba(242,92,42,.34) 0%, rgba(242,92,42,.08) 42%, transparent 72%),
+      radial-gradient(90% 60% at 5% 105%, rgba(255,210,175,.10) 0%, transparent 65%),
+      linear-gradient(165deg, #272523 0%, #1c1b19 52%, #151413 100%);
+    border-radius:20px;padding:13px 14px;display:flex;flex-direction:column;
+    box-shadow:0 12px 28px -8px rgba(24,20,16,.28), inset 0 1px 0 rgba(255,255,255,.14), 0 0 0 1px rgba(30,26,22,.18);
+  }
+  /* 微弱点阵肌理 + 顶部流光细线, 打破死黑沉闷感 */
+  .dark-card::before{
+    content:'';position:absolute;inset:0;pointer-events:none;
+    background-image:radial-gradient(rgba(255,255,255,.06) 1px, transparent 1px);
+    background-size:14px 14px;opacity:.55;
+    mask-image:linear-gradient(to bottom, rgba(0,0,0,.9), rgba(0,0,0,.2));
+    -webkit-mask-image:linear-gradient(to bottom, rgba(0,0,0,.9), rgba(0,0,0,.2));
+  }
+  .dark-card::after{
+    content:'';position:absolute;top:0;left:18px;right:18px;height:1.5px;pointer-events:none;
+    background:linear-gradient(90deg, transparent, rgba(242,92,42,.75) 55%, rgba(255,255,255,.35) 80%, transparent);
+  }
+  .dc-head{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;padding-bottom:9px;border-bottom:1px solid rgba(255,255,255,.09)}
+  .dc-head .t{font-size:12.5px;font-weight:600;color:#fff;letter-spacing:-.1px;display:flex;align-items:center;gap:6px}
+  .dc-head .t::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--orange);box-shadow:0 0 8px var(--orange)}
+  .dc-head .cnt{font-family:var(--mono);font-size:10.5px;color:#fff;background:rgba(242,92,42,.22);border:1px solid rgba(242,92,42,.45);padding:1.5px 9px;border-radius:999px;font-weight:600}
+  .dc-list{position:relative;z-index:1;flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;justify-content:space-between;padding-top:7px;gap:5px}
+  .dc-item{
+    position:relative;overflow:hidden;
+    display:flex;align-items:center;gap:9px;padding:5.5px 9px 7px;
+    border-radius:12px;
+    background:linear-gradient(135deg, rgba(255,255,255,.075) 0%, rgba(255,255,255,.03) 100%);
+    border:1px solid rgba(255,255,255,.08);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+    backdrop-filter:blur(8px);
+    transition:all .18s ease;
+  }
+  .dc-item .tier{font-size:8px;padding:0 3px;border-radius:3px;border:1px solid rgba(255,255,255,.22);color:rgba(255,255,255,.55);margin-left:3px;vertical-align:middle}
+  .dc-empty{padding:14px 16px;font-size:10.5px;color:rgba(255,255,255,.62);line-height:1.8;text-align:center}
+  .dc-empty span{font-size:9px;color:rgba(255,255,255,.38)}
+  .dc-item.hot{
+    background:linear-gradient(135deg, rgba(242,92,42,.15) 0%, rgba(255,255,255,.045) 75%);
+    border-color:rgba(242,92,42,.28);
+  }
+  .dc-item:hover{
+    transform:translateX(-2px);
+    background:linear-gradient(135deg, rgba(242,92,42,.22) 0%, rgba(255,255,255,.09) 100%);
+    border-color:rgba(242,92,42,.5);
+  }
+  /* 每行底部微缩能量进度条 (真实会话占比) */
+  .dc-bar{
+    position:absolute;left:9px;right:9px;bottom:2px;height:2px;
+    background:rgba(255,255,255,.06);border-radius:999px;overflow:hidden;
+  }
+  .dc-bar i{
+    display:block;height:100%;border-radius:999px;
+    background:linear-gradient(90deg, var(--orange), #ff9a6c);
+    transition:width .4s ease;
+  }
+  .dc-idx{
+    width:22px;height:22px;border-radius:7px;flex:none;
+    background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.13);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:9.5px;font-weight:600;color:rgba(255,255,255,.8);
+  }
+  .dc-item.hot .dc-idx{
+    background:rgba(242,92,42,.22);border-color:rgba(242,92,42,.45);color:#ffbba0;
+  }
+  .dc-info{flex:1;min-width:0}
+  .dc-name{font-size:11.5px;font-weight:600;color:#fff;display:flex;align-items:center;gap:5px;white-space:nowrap}
+  .dc-name .hbadge{font-family:var(--mono);font-size:8.5px;padding:0 5px;border-radius:4px;background:rgba(255,255,255,.09);color:rgba(255,255,255,.7);font-weight:500;flex:none;min-width:38px;text-align:center}
+  .dc-name small{margin-left:auto;text-align:right;font-family:var(--mono);font-size:8.5px;color:rgba(255,255,255,.5);font-weight:400;margin-left:auto;overflow:hidden;text-overflow:ellipsis}
+  .dc-meta{font-family:var(--mono);font-size:9.5px;color:rgba(255,255,255,.58);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dc-lamp{display:inline-block;padding:0;box-sizing:border-box;width:6.5px;height:6.5px;border-radius:50%;flex:none;border:1px solid rgba(255,255,255,.22);background:transparent}
+  .dc-lamp.live{display:inline-block;padding:0;background:var(--orange);border-color:rgba(242,92,42,.85);box-shadow:0 0 4px rgba(242,92,42,.5);animation:breath 1.5s infinite}
+  .dc-lamp.done{background:transparent;border:1.4px solid var(--orange);opacity:.85}   /* 空心橙环 = 曾活跃 */
+  .dc-lamp.ok{background:rgba(255,255,255,.65);border-color:rgba(255,255,255,.65)}
+
+  /* 隐藏兼容容器 (供旧选择器与脚本零报错写入) */
+  .compat-hide{display:none}
+
+  /* 步骤时间线横向紧凑条 */
+  .tl{position:relative;margin:4px 8px}
+  .tl::before{content:'';position:absolute;left:5.5px;top:8px;bottom:8px;width:2px;background:var(--line)}
+  .step{position:relative;padding:2px 0 2px 22px}
+  .step .ind{position:absolute;left:0;top:7px;width:11px;height:11px;border-radius:50%;
+    background:#fdfcf9;border:1.5px solid rgba(60,55,50,.25)}
+  .step.done .ind{background:var(--dark);border-color:var(--dark)}
+  .step.run .ind{border-color:var(--orange);background:var(--orange)}
+  .step.blocked .ind{border-color:var(--bad)}
+  .step .row{display:flex;align-items:baseline;gap:6px}
+  .step .no{font-family:var(--mono);font-size:9px;color:var(--dim2)}
+  .step .lbl{font-size:11.5px;font-weight:500;color:var(--fg)}
+  .step .st{margin-left:auto;font-family:var(--mono);font-size:9.5px;color:var(--dim2)}
+  .step.done .st{color:var(--ok)}
+  .step.run .st{color:var(--orange);font-weight:600}
+  .step.blocked .st{color:var(--bad)}
+  .step .dt{font-size:10px;color:var(--dim2);word-break:break-all}
+
+  .foot{flex:none;padding:0 clamp(16px,2vw,26px) 6px;font-size:10px;color:var(--dim2);
+    display:flex;justify-content:space-between;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .foot code{font-family:var(--mono);color:var(--dim);font-size:9.5px}
+
+  /* 详情弹窗 */
+  .mask{position:fixed;inset:0;background:rgba(24,24,27,.55);backdrop-filter:blur(4px);
+    z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+  .mask[hidden]{display:none}
+  .modal{width:min(760px,94vw);max-height:82vh;display:flex;flex-direction:column;overflow:hidden;border-radius:20px}
+  .modal .card-h{flex:none;padding:12px 18px}
+  .modal .card-h .x{margin-left:auto;background:var(--dark);border:none;
+    border-radius:999px;width:26px;height:26px;font-size:15px;line-height:1;color:#fff;cursor:pointer}
+  .modal .mb{overflow-y:auto;padding:12px 18px 18px}
+  .mrow{display:grid;grid-template-columns:80px 1fr;gap:4px 10px;font-size:12px;padding:3px 0;align-items:baseline}
+  .mrow .mk{font-family:var(--mono);font-size:10px;color:var(--dim2)}
+  .mrow .mv{color:var(--fg);word-break:break-word;white-space:pre-wrap}
+  .msec{margin-top:11px}
+  .msec .mh{font-family:var(--mono);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--dim2);margin-bottom:5px;padding-bottom:4px;border-bottom:1px solid var(--line2)}
+  .msec pre{background:var(--card2);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;
+    font-family:var(--mono);font-size:11.5px;line-height:1.65;color:var(--fg);
+    white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;max-height:42vh;overflow-y:auto}
+  .msec .none{font-size:11.5px;color:var(--dim2)}
+
+  /* 全屏常亮按钮与沉浸态 */
+  .fs-pill{
+    border:none;background:var(--dark);color:#fff;
+    border-radius:9999px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;
+    font-family:inherit;display:inline-flex;align-items:center;gap:5px;
+    transition:all .15s;box-shadow:0 2px 6px rgba(0,0,0,.14);
+  }
+  .fs-pill:hover{background:var(--orange)}
+  .fs-pill.on{background:var(--orange);color:#fff}
+  body.kiosk-mode .foot{display:none}
+  body.kiosk-mode .main{padding-bottom:12px}
+
+  /* 胶囊菜单聚焦高亮态 */
+  .pulse-focus{box-shadow:0 0 0 2.5px var(--orange),var(--elev)!important}
+
+  /* ── 响应式四档 ── */
+  @media (max-width:1199px){
+    .main{grid-template-columns:380px 1fr;grid-template-rows:auto}
+    .dark-col{grid-column:1 / -1;display:grid;grid-template-columns:280px 1fr;gap:10px}
+    .dc-list{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+    .wf .b-chain{flex-direction:column;gap:calc(10px * var(--wfs,1))}
+    .wf .b-chain .fnode + .fnode{margin-left:0}
+  }
+  @media (max-width:899px){
+    html,body{overflow:auto;height:auto}
+    .nav{grid-template-columns:1fr;justify-items:start;gap:8px}
+    .pill-nav{width:100%;overflow-x:auto}
+    .hero-strip{flex-direction:column;align-items:flex-start;gap:10px}
+    .seg-wrap{grid-template-columns:repeat(2,1fr);width:100%}
+    .main{grid-template-columns:1fr;gap:12px}
+    .dark-col{grid-template-columns:1fr}
+    .dc-list{grid-template-columns:repeat(2,1fr)}
+    .wf .branches{grid-template-columns:1fr;gap:12px}
+    .wf .b-chain{flex-direction:column;gap:calc(10px * var(--wfs,1))}
+    .wf .b-chain .fnode + .fnode{margin-left:0}
+    .card.grow{flex:none!important}
+    .grow .body{max-height:42vh;overflow-y:auto}
+  }
+  @media (max-width:599px){
+    .bento-pair{grid-template-columns:1fr}
+    .dc-list{grid-template-columns:1fr}
+    .run .host-arrow,.run .tm{display:none}
+  }
+</style>
+</head>
+<body>
+
+<!-- 1. 顶部居中圆角胶囊导航栏 -->
+<nav class="nav">
+  <div class="nav-left">
+    <span class="brand-pill"><span class="bdot"></span>Switchyard · A2A</span>
+    <span class="ver">v25</span>
+    <span class="pill"><span class="dot wait" id="sys-dot"></span><span id="sys-text">检测中…</span></span>
+  </div>
+
+  <div class="pill-nav" id="top-tabs">
+    <button class="active" data-tab="all">Dashboard</button>
+    <button data-tab="wf">Workflow 拓扑</button>
+    <button data-tab="min">Six Ministries 六部</button>
+    <button data-tab="runs">Ledger 账本</button>
+    <button data-tab="hosts">Hosts 双机</button>
+  </div>
+
+  <div class="nav-right">
+    <button class="fs-pill" id="fsbtn" onclick="toggleFullscreen()" title="全屏并保持屏幕常亮 (快捷键 F)">⛶ 全屏常亮</button>
+    <button class="ping-pill" id="pingbtn" onclick="doPing()">● 测试链路 <span id="lat" class="mono" style="margin-left:4px">—</span></button>
+    <div class="clockbox">
+      <div class="clock" id="clock">--:--:--</div>
+      <div class="upd">SSE 2s/帧 · Mini :7844</div>
+    </div>
+  </div>
+</nav>
+
+<!-- 2. Hero 迎宾条 + 四段式黑白橙胶囊进度条 + 右侧超大号数字 KPI -->
+<section class="hero-strip">
+  <div class="hero-left">
+    <div class="hero-title-row">
+      <h1 class="hero-title" id="hero-stage">Welcome in, Stage 08</h1>
+      <span class="hero-sub" id="reply">三省六部双机协同 · 数据真实可溯源</span>
+    </div>
+    <div class="seg-wrap">
+      <div class="seg-item">
+        <div class="seg-lbl"><span>Prep · 账本完成率</span><b id="seg1-txt">—%</b></div>
+        <div class="seg-pill dark"><div class="fill" id="seg1-bar" style="width:70%"></div><span id="seg1-sub">已完成</span></div>
+      </div>
+      <div class="seg-item">
+        <div class="seg-lbl"><span>Shooting · Mini 载荷</span><b id="seg2-txt">—%</b></div>
+        <div class="seg-pill orange"><div class="fill" id="seg2-bar" style="width:78%"></div><span id="seg2-sub">尚书 + 六部</span></div>
+      </div>
+      <div class="seg-item">
+        <div class="seg-lbl"><span>Turnaround · MBP 载荷</span><b id="seg3-txt">—%</b></div>
+        <div class="seg-pill light"><div class="fill" id="seg3-bar" style="width:22%"></div><span id="seg3-sub">中书 + 门下</span></div>
+      </div>
+      <div class="seg-item">
+        <div class="seg-lbl"><span>Outbox · 待回传挂起</span><b id="seg4-txt">0</b></div>
+        <div class="seg-pill hatched"><span id="seg4-sub">08 信箱清零</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi">
+      <div class="top"><span class="dot-sm"></span><div class="v" id="k-mini">—</div></div>
+      <div class="k">Mini Gateway</div>
+    </div>
+    <div class="kpi">
+      <div class="top"><div class="v" id="k-mbp">—</div></div>
+      <div class="k">MBP Gateway</div>
+    </div>
+    <div class="kpi">
+      <div class="top"><div class="v" id="k-lat">—</div></div>
+      <div class="k">A2A Roundtrip</div>
+    </div>
+    <div class="kpi">
+      <div class="top"><div class="v" id="k-live">—</div></div>
+      <div class="k" id="k-live-s">60s Active</div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. Bento 主网格 -->
+<div class="main">
+  <!-- 左列: Bento 图表对 + 双机主机卡 + 胶囊账本列表 -->
+  <div class="col" id="col-left">
+    <div class="bento-pair">
+      <!-- 左小卡: 竖向胶囊柱状图 (Camera hours 同款) -->
+      <div class="card bento-mini">
+        <div>
+          <div class="bm-head"><span>Profile Sessions</span><span class="mono" style="color:var(--orange)">● LIVE</span></div>
+          <div class="bm-big"><span id="tot-sess-num">—</span><small>sessions</small></div>
+        </div>
+        <div class="vbars" id="prof-bars"></div>
+      </div>
+
+      <!-- 右小卡: 环形刻度表盘 (Setup timer 同款) -->
+      <div class="card bento-mini">
+        <div class="bm-head"><span>Stage Timer</span><span class="mono" id="tl-mode">IDLE</span></div>
+        <div class="dial-wrap">
+          <svg class="dial-svg" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(40,36,32,.1)" stroke-width="6" stroke-dasharray="3 3"/>
+            <circle id="dial-arc" cx="50" cy="50" r="40" fill="none" stroke="#f25c2a" stroke-width="6" stroke-linecap="round" stroke-dasharray="190 252"/>
+          </svg>
+          <div class="dial-center">
+            <div class="dial-val" id="dial-clock">00:00</div>
+            <div class="dial-sub" id="dial-sub">5m 活跃 0</div>
+          </div>
+        </div>
+        <div class="dial-foot"><span id="opt-when">自优化 —</span><span class="mono" id="opt-state" style="color:var(--dim2)">—</span></div>
+      </div>
+    </div>
+
+    <!-- 主机状态 + 联动软件矩阵 -->
+    <div class="card" id="card-hosts" style="flex:none">
+      <div class="card-h"><span class="t">双机节点 · Host Status</span><span class="n">GATEWAY / PROBE</span></div>
+      <div class="host">
+        <div class="hh"><span class="dot wait" id="mini-dot"></span><span class="nm">Mac Mini</span><span class="role">· 尚书 + 六部</span><span class="lat wait" id="mini-lat">—</span></div>
+        <div class="gw"></div>
+        <div class="chips" id="mini-chips"></div>
+        <div id="mini-metrics"></div>
+      </div>
+      <div class="host" id="mbp-panel">
+        <div class="hh"><span class="dot wait" id="mbp-dot"></span><span class="nm">MacBook Pro</span><span class="role" id="mbp-fresh">· 等待上报…</span><span class="lat wait" id="mbp-lat">—</span></div>
+        <div class="gw"></div>
+        <div class="chips" id="mbp-chips"></div>
+        <div id="mbp-metrics"></div>
+      </div>
+      <div class="softrow">
+        <span class="k" title="左灯=本机, 右灯=对端; 绿=在线, 红=仅单端在线, 灰=未运行。悬停看探测方式">本机 Agent<span class="softcnt" id="softs-n"></span></span>
+        <div id="softs"></div>
+      </div>
+    </div>
+
+    <!-- 甘特胶囊运行记录 (点击弹窗看全文) -->
+    <div class="card grow" id="card-runs" style="flex:1.5">
+      <div class="card-h"><span class="t">任务账本 · Execution Strip</span><span class="n" id="runs-n">点击看全文</span></div>
+      <div class="body" id="runs"><div class="empty">暂无运行记录</div></div>
+    </div>
+
+    <!-- 隐藏兼容时间线容器 (保留 #tl 供原有脚本更新) -->
+    <div class="compat-hide"><div id="tl"></div></div>
+  </div>
+
+  <!-- 中列: 纵向工作流实时拓扑 -->
+  <div class="card wfcard" id="card-wf">
+    <div class="card-h"><span class="t">工作流实时拓扑</span><span class="n" id="wf-state">IDLE</span><button class="topo-sw" id="wf-demo" title="播放一次完整链路的数据流动演示 (不影响真实状态)">▶ 演示</button><button class="topo-sw" id="topo-toggle" title="切换: 编排拓扑 / 扫描生成的 Agent 图">⇄</button></div>
+    <div class="wf" id="wf">
+      <svg class="edges" id="edges-svg"></svg>
+      <div class="wf-inner" id="wf-inner">
+      <div id="wf-static" style="display:flex;flex-direction:column;align-items:center;justify-content:space-between;width:100%;flex:1;min-height:0">
+      <div class="fnode stage" data-k="mbp"><div class="no">02</div><span class="work-tag">接活</span><div class="t">MBP 接活</div><div class="d" id="mbp-desc">三德子 · 任务分流</div></div>
+
+      <div class="branches">
+        <div class="branch" id="br-pipe">
+          <div class="b-head"><b>编排模式</b> · 需要方案的任务</div>
+          <div class="b-chain">
+            <div class="fnode" data-k="zs"><div class="no">03</div><span class="work-tag">起草中</span><div class="t">中书省</div><div class="d">起草方案</div></div>
+            <div class="fnode" data-k="mx"><div class="no">04</div><span class="work-tag">审核中</span><div class="t">门下省</div><div class="d">审核 · 可驳回</div></div>
+          </div>
+        </div>
+        <div class="branch" id="br-direct">
+          <div class="b-head g"><b>直达派发</b> · 简单 / 自动任务</div>
+          <div class="b-chain">
+            <div class="fnode" data-k="d_disp"><div class="no">04'</div><span class="work-tag">派发中</span><div class="t">直接派发</div><div class="d">不经起草审核</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fnode stage" data-k="a2a"><div class="no">05</div><span class="work-tag">派发中</span><div class="t">A2A 跨机派发</div><div class="d">合流 · Tailscale</div></div>
+
+      <div class="branches">
+        <div class="branch" id="br-exec-pipe">
+          <div class="b-head"><b>编排执行</b> · 尚书接单</div>
+          <div class="b-chain">
+            <div class="fnode" data-k="ss"><div class="no">06</div><span class="work-tag">调度中</span><div class="t">尚书省</div><div class="d">分派六部</div></div>
+            <div class="fnode" data-k="six"><div class="no">07</div><span class="work-tag">执行中</span><div class="t">六部执行</div>
+              <div class="sixbox" id="sixbox">
+                <div class="mchip" data-m="吏部">吏部</div>
+                <div class="mchip" data-m="户部">户部</div>
+                <div class="mchip" data-m="礼部">礼部</div>
+                <div class="mchip" data-m="兵部">兵部</div>
+                <div class="mchip" data-m="刑部">刑部</div>
+                <div class="mchip" data-m="工部">工部</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="branch" id="br-exec-direct">
+          <div class="b-head g"><b>直达执行</b> · Mini Agent</div>
+          <div class="b-chain">
+            <div class="fnode" data-k="d_exec"><div class="no">07'</div><span class="work-tag">执行中</span><div class="t">Mini Agent</div><div class="d">直接执行</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="fnode stage" data-k="ret"><div class="no">08</div><span class="work-tag">回传</span><div class="t">结果回传</div><div class="d" id="ret-desc">汇总呈报</div></div>
+      </div>
+      <div id="wf-dynamic" style="display:none;flex-direction:column;align-items:center;justify-content:center;gap:26px;width:100%;flex:1;min-height:0;padding:6px 0"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右列: Setup readiness + 深炭黑三省六部巡检长卡 (复刻参考图右下角深色对比卡) -->
+  <div class="dark-col" id="card-min">
+    <div class="card readiness-card">
+      <div class="rd-top">
+        <span class="lbl">Setup Readiness · 节点就绪</span>
+        <span class="pct" id="rd-pct">100%</span>
+      </div>
+      <div class="rd-bars">
+        <div class="rd-bar b-orange" id="rd-b1">节点</div>
+        <div class="rd-bar b-dark" id="rd-b2">活跃</div>
+        <div class="rd-bar b-muted" id="rd-b3">联动×6</div>
+      </div>
+    </div>
+
+    <div class="dark-card">
+      <div class="dc-head">
+        <span class="t">Agent 实时巡检榜</span>
+        <span class="cnt" id="dc-count">9/9</span>
+      </div>
+      <div class="dc-list" id="dark-roster"></div>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  <span>Switchyard Bento v25 · 暖纸护眼底 <code>#f3f1ec</code> + 深炭黑对比卡 · 点击任意账本胶囊看全文</span>
+  <span>MBP <code>30s</code> 上报（<code>75s</code> 离线挂起至 08 Outbox） · Mini <code>http://100.110.231.32:7844</code></span>
+</div>
+
+<!-- 运行记录详情弹窗 -->
+<div class="mask" id="run-mask" hidden>
+  <div class="card modal">
+    <div class="card-h"><span class="t" id="rm-title">任务详情</span>
+      <button class="x" id="rm-close" title="关闭 (Esc)">×</button></div>
+    <div class="mb" id="rm-body"></div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const softShort=n=>{n=String(n??'');if(n.length<=11)return n;
+  const plus=n.split(' + ')[0];if(plus.length>=3&&plus.length<=13)return plus;
+  const head=n.split(/\s+/)[0];return head.length>=4?head:n.slice(0,10)+'…';};
+const esc=s=>String(s??'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[c]));
+const API=(location.protocol==='http:'||location.protocol==='https:')?location.origin:'http://100.110.231.32:7844';
+
+function ago(t){if(!t)return '—';const s=Math.max(0,Date.now()/1000-t);
+  if(s<15)return '刚刚';if(s<60)return Math.round(s)+' 秒前';
+  if(s<3600)return Math.round(s/60)+' 分钟前';if(s<86400)return Math.round(s/3600)+' 小时前';
+  return Math.round(s/86400)+' 天前'}
+function hm(t){if(!t)return '—';const d=new Date(t*1000),p=n=>String(n).padStart(2,'0');
+  return `${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`}
+
+setInterval(()=>{
+  const now=new Date();
+  $('clock').textContent=now.toLocaleTimeString('zh-CN',{hour12:false});
+  const dc=$('dial-clock');
+  if(dc)dc.textContent=now.toTimeString().slice(0,5);
+},500);
+
+/* 顶部胶囊菜单切换高亮与聚焦 */
+$('top-tabs').addEventListener('click',e=>{
+  const btn=e.target.closest('button[data-tab]');
+  if(!btn)return;
+  document.querySelectorAll('#top-tabs button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const tab=btn.dataset.tab;
+  const map={wf:'card-wf',min:'card-min',runs:'card-runs',hosts:'card-hosts'};
+  document.querySelectorAll('.pulse-focus').forEach(el=>el.classList.remove('pulse-focus'));
+  if(map[tab] && $(map[tab])){
+    const el=$(map[tab]);
+    el.classList.add('pulse-focus');
+    el.scrollIntoView({behavior:'smooth',block:'nearest'});
+    setTimeout(()=>el.classList.remove('pulse-focus'),1800);
+  }
+});
+
+function fmtModel(m){
+  if(!m)return '';
+  if(typeof m==='string')return m;
+  if(m.model)return (m.provider?m.provider+'/':'')+m.model;
+  return '';
+}
+function chipHTML(items,emptyText,models){
+  if(!items||!items.length)return `<span class="offline">${emptyText}</span>`;
+  return items.map(p=>{
+    const isStr=typeof p==='string';
+    const name=isStr?p:(p.name||'');
+    const run=!isStr&&(p.gateway||'').toLowerCase()==='running';
+    const full=fmtModel(isStr?((models||{})[name]):p.model);
+    const st=isStr?'就绪':(run?'RUN':'STOP');
+    return `<span class="hchip ${run?'run':''}"${full?` title="${esc(name)} → ${esc(full)}"`:''}>${esc(name)}<span class="st">${st}</span></span>`;
+  }).join('');
+}
+function hmetrics(el,act){
+  if(!act||act.error){el.innerHTML=`<div class="hmetric"><span class="flash">state.db 不可达</span></div>`;return}
+  const v=Object.values(act);
+  const tot=v.reduce((a,d)=>a+d.sessions,0), live=v.reduce((a,d)=>a+d.active_now,0),
+        last=Math.max(...v.map(d=>d.last||0));
+  el.innerHTML=`<div class="hmetric"><span>Session ${tot} · 60s活跃 ${live}</span><span class="v" title="${hm(last)}">${ago(last)}</span></div>`;
+}
+
+/* v25: 渲染左上竖向胶囊柱状图 + 右侧深色三省六部实时点名榜 + Hero 四段胶囊条 */
+/* v28: 通用 profile 发现 — 不认死三省六部, 谁的机器都按实际 profile 生成
+   数据源: 本机 activity ∪ 对端 activity, 名称取 config.profiles 映射, 无映射用原名 */
+function _profItems(t){
+  const miniAct=(t.mini&&t.mini.activity&&!t.mini.activity.error)?t.mini.activity:{};
+  const mbpAct=(t.mbp&&t.mbp.activity&&!t.mbp.activity.error)?t.mbp.activity:{};
+  const roles=(t.a2a&&t.a2a.profiles)||{};
+  const PM=window.__profModel||{mbp:{},mini:{}};
+  const keys=[...new Set([...Object.keys(miniAct),...Object.keys(mbpAct)])].filter(k=>k&&k!=='error');
+  return keys.map(k=>{
+    const mi=miniAct[k]||{}, mb=mbpAct[k]||{};
+    const sess=(mi.sessions||0)+(mb.sessions||0);
+    const msgs=(mi.msgs||0)+(mb.msgs||0);
+    const last=Math.max(mi.last||0, mb.last||0);
+    const active=(mi.active_now||0)+(mb.active_now||0);
+    const hosts=[mi.sessions?'Mini':null, mb.sessions?'MBP':null].filter(Boolean);
+    const raw=roles[k]||(k==='unknown'?'主会话':k==='default'?'默认':k);
+    const tier=/省$/.test(raw)?'省':(/部$/.test(raw)?'部':'');
+    const mdl=(PM.mini||{})[k]||(PM.mbp||{})[k]||'';
+    return {k,name:raw,tier,sess,msgs,last,active,hosts,mdl,
+            short:raw.slice(0,2)};
+  }).filter(x=>x.sess>0||x.active>0||x.last>0)
+    .sort((a,b)=>(b.active-a.active)||(b.last-a.last)||(b.sess-a.sess));
+}
+
+function renderSwitchyardExtras(t, local, pend){
+  const miniAct=(t.mini&&t.mini.activity&&!t.mini.activity.error)?t.mini.activity:{};
+  const mbpAct=(t.mbp&&t.mbp.activity&&!t.mbp.activity.error)?t.mbp.activity:{};
+  const miniSum=Object.values(miniAct).reduce((a,d)=>a+(d.sessions||0),0);
+  const mbpSum=Object.values(mbpAct).reduce((a,d)=>a+(d.sessions||0),0);
+  const allSess=miniSum+mbpSum;
+  $('tot-sess-num').textContent=allSess||'0';
+
+  // 1) 动态 profile 柱状图 (会话数 top7, 谁装了什么都按实际来)
+  const _items=_profItems(t);
+  const vals=_items.slice(0,7).map(x=>({zh:x.short,k:x.k,v:x.sess}));
+  const maxV=Math.max(1,...vals.map(x=>x.v));
+  $('prof-bars').innerHTML=vals.length?vals.map(x=>{
+    const pct=Math.max(10,Math.round((x.v/maxV)*100));
+    const isPeak=x.v===maxV && x.v>0;
+    return `<div class="vbar-col" title="${esc(x.k)}: ${x.v} 会话">
+      <div class="vbar-track"><div class="vbar-fill ${isPeak?'peak':''}" style="height:${pct}%"></div></div>
+      <span class="vbar-lbl">${esc(x.zh)}</span>
+    </div>`;
+  }).join(''):'<div class="vbar-col" style="width:100%"><span class="vbar-lbl" style="font-size:8px">无 profile</span></div>';
+
+  // 2) Hero 四段胶囊比例条 (真实账本与双机载荷)
+  const led=t.ledger||[];
+  const doneCnt=led.filter(x=>x.status==='done').length;
+  const donePct=led.length?Math.round((doneCnt/led.length)*100):100;
+  $('seg1-txt').textContent=`${donePct}%`;
+  $('seg1-bar').style.width=`${Math.max(18,donePct)}%`;
+  $('seg1-sub').textContent=`${doneCnt}/${led.length} 完成`;
+
+  const miniPct=allSess?Math.round((miniSum/allSess)*100):80;
+  const mbpPct=allSess?(100-miniPct):20;
+  $('seg2-txt').textContent=`${miniPct}%`;
+  $('seg2-bar').style.width=`${Math.max(18,miniPct)}%`;
+  $('seg2-sub').textContent=`Mini ${miniSum} 会话`;
+
+  $('seg3-txt').textContent=`${mbpPct}%`;
+  $('seg3-bar').style.width=`${Math.max(18,mbpPct)}%`;
+  $('seg3-sub').textContent=`MBP ${mbpSum} 会话`;
+
+  $('seg4-txt').textContent=String(pend);
+  $('seg4-sub').textContent=pend>0?`待回传 ×${pend} 挂起`:'08 信箱清零';
+
+  // 环形表盘副标题
+  const lw=local?(local.warm||0):0;
+  $('dial-sub').textContent=`5m 活跃 ×${lw}`;
+
+  // 3) 右侧深炭黑卡片: 巡检榜 (按发现的 profile 动态生成, 不认死三省六部)
+  const nowS=Date.now()/1000;
+  const roster=_items;
+  let activeOrDone=0;
+  const maxR=Math.max(1,...roster.map(r=>r.sess));
+  $('dark-roster').innerHTML=roster.length?roster.map((r,i)=>{
+    const pct=Math.max(8,Math.round((r.sess/maxR)*100));
+    const isRun=r.active>0;
+    const isRecent=!isRun&&r.last&&(nowS-r.last)<86400;
+    if(isRun||r.sess>0)activeOrDone++;
+    const lampCls=isRun?'live':(isRecent?'done':(r.sess>0?'ok':''));
+    const hotCls=(isRun||isRecent)?'hot':'';
+    const metaTxt=`${r.sess}会话 · ${r.msgs}消息 · ${r.last?ago(r.last):'待命'}`;
+    const hostBadge=r.hosts.length?r.hosts.join('+'):'—';
+    const shortMdl=String(r.mdl||'').split('/').pop();
+    return `<div class="dc-item ${hotCls}" title="${esc(r.k+' · '+(r.mdl||'模型未声明'))}">
+      <div class="dc-idx">${String(i+1).padStart(2,'0')}</div>
+      <div class="dc-info">
+        <div class="dc-name">${esc(r.name)}${r.tier?`<span class="tier">${r.tier}</span>`:''}<span class="hbadge">${esc(hostBadge)}</span>${shortMdl?`<small>${esc(shortMdl)}</small>`:''}</div>
+        <div class="dc-meta">${esc(metaTxt)}</div>
+      </div>
+      <div class="dc-lamp ${lampCls}"></div>
+      <div class="dc-bar"><i style="width:${pct}%"></i></div>
+    </div>`;
+  }).join(''):'<div class="dc-empty">未发现 profile · 单 agent 模式<br><span>panel 仍可用, 会话统计看左列</span></div>';
+  $('dc-count').textContent=`${activeOrDone}/${roster.length||1}`;
+  // 就绪度标签通用化
+  const tiered=roster.filter(x=>x.tier).length;
+  if($('rd-b1'))$('rd-b1').textContent=tiered?`编排 ×${tiered}`:`节点 ×${roster.length}`;
+  if($('rd-b2'))$('rd-b2').textContent=`活跃 ×${roster.filter(x=>x.active>0).length}`;
+  const softsUp=(t.softs||[]).filter(s=>s.state==='up').length;
+  $('rd-b3').textContent=`联动 ${softsUp}/${(t.softs||[]).length||6}`;
+}
+
+function render(t){
+  const m=t.mbp;
+  if(!m){
+    $('mbp-dot').className='dot bad';$('mbp-lat').textContent='未上线';$('mbp-lat').className='lat bad';
+    const fm=$('mbp-fresh');fm.textContent='等待上报…';fm.style.color='var(--dim2)';
+    $('mbp-chips').innerHTML='<span class="offline">MBP 未连接</span>';
+    $('mbp-metrics').innerHTML='';$('mbp-panel').style.opacity=.5;
+    $('k-mbp').textContent='—';$('k-mbp').className='v bad';
+  } else if(m.stale){
+    $('mbp-dot').className='dot bad';$('mbp-lat').textContent='离线';$('mbp-lat').className='lat bad';
+    const fm=$('mbp-fresh');fm.textContent='最后上报 '+ago((Date.now()/1000)-m.age)+'前';fm.style.color='var(--warn)';
+    $('mbp-chips').innerHTML=chipHTML(m.profiles,'无 profile');
+    hmetrics($('mbp-metrics'),m.activity);
+    $('mbp-panel').style.opacity=.6;
+    $('k-mbp').textContent='离线';$('k-mbp').className='v bad';
+  } else {
+    const g=m.gateway, ok=!!(g&&g.ok);
+    $('mbp-dot').className='dot '+(ok?'ok':'bad');
+    $('mbp-lat').textContent=ok?`${g.ms}ms`:'离线';
+    $('mbp-lat').className='lat '+(ok?'ok':'bad');
+    const fm=$('mbp-fresh');fm.textContent='上报 '+ago((Date.now()/1000)-m.age)+'前';fm.style.color='var(--dim2)';
+    $('mbp-chips').innerHTML=chipHTML(m.profiles,'无 profile');
+    hmetrics($('mbp-metrics'),m.activity);
+    $('mbp-panel').style.opacity=1;
+    $('k-mbp').innerHTML=ok?`${g.ms}<small>ms</small>`:'离线';$('k-mbp').className='v'+(ok?' ok':' bad');
+  }
+  const g=t.mini.gateway;
+  const ok=!!(g&&g.ok);
+  $('mini-dot').className='dot '+(ok?'ok':'bad');
+  $('mini-lat').textContent=ok?`${g.ms}ms`:'离线';
+  $('mini-lat').className='lat '+(ok?'':' bad');
+  $('k-mini').innerHTML=ok?`${g.ms}<small>ms</small>`:'离线';$('k-mini').className='v'+(ok?' ok':' bad');
+  const dirs=t.mini.profileDirs;
+  $('mini-chips').innerHTML=dirs===null
+    ?'<span class="offline">本地目录不可达</span>'
+    :(dirs.length?chipHTML(dirs,'无 profile 目录',t.mini.profileModels)
+                 :'<span class="offline">无 profile 目录</span>');
+  hmetrics($('mini-metrics'),t.mini.activity);
+  const miniLive=(t.mini.activity&&!t.mini.activity.error)?Object.values(t.mini.activity).reduce((a,d)=>a+d.active_now,0):0;
+  const mbpLive=(m&&m.activity&&!m.activity.error)?Object.values(m.activity).reduce((a,d)=>a+d.active_now,0):0;
+  const liveTot=miniLive+mbpLive;
+  const kv=$('k-live');kv.textContent=liveTot;kv.className='v'+(liveTot?' ok':'');
+  $('k-live-s').textContent=`MBP ${mbpLive} · Mini ${miniLive}`;
+  $('sys-dot').className='dot '+(ok?'ok':'bad');
+  $('sys-text').textContent=ok?'系统运行正常':'gateway 离线';
+  $('sys-text').style.color=ok?'var(--fg)':'var(--bad)';
+  if($('sys-dot')) $('sys-dot').className = ok ? 'dot live' : 'dot bad';   // 呼吸绿 / 故障红
+
+  const mStale=!m||!!m.stale;
+  const mbpTasks=(m&&Array.isArray(m.tasks))?m.tasks.map(x=>{
+    const eff=x.age+(m.age||0);
+    return {host:'MBP', profile:x.profile||'', title:x.title||'(无标题会话)',
+            at:Date.now()/1000-(x.age||0), live:!!x.live, warm:eff<300||!!x.live, stale:mStale};
+  }):[];
+  const miniTasks=(t.mini&&Array.isArray(t.mini.tasks))?t.mini.tasks.map(x=>({
+    host:'Mini', profile:x.profile||'', title:x.title||'(无标题会话)',
+    at:Date.now()/1000-(x.age||0), live:(x.age||0)<60, warm:(x.age||0)<300, stale:false})):[]; 
+  const mbpWarm=mStale?0:mbpTasks.filter(x=>x.warm).length;
+  const miniWarm=miniTasks.filter(x=>x.warm).length;
+  const local={tasks:[...mbpTasks,...miniTasks],
+    mbpWarm, miniWarm,
+    warm:mbpWarm+miniWarm,
+    live:(mStale?0:mbpTasks.filter(x=>x.live).length)+miniTasks.filter(x=>x.live).length,
+    stale:mStale};
+
+  window.__profModel={mbp:{},mini:{}};
+  if(t.mini.profileModels)Object.entries(t.mini.profileModels).forEach(([k,v])=>{window.__profModel.mini[k]=fmtModel(v);});
+  if(m&&Array.isArray(m.profiles))m.profiles.forEach(p=>{if(p.model)window.__profModel.mbp[p.name]=p.model;});
+  const pend=Number(t.outbox_pending)||0;
+  window.__outboxPending=pend;
+  window.__miniAct=t.mini.activity;
+
+  renderFlow(t.flow, local, pend);
+  window.__lastTopo = t;
+  applyTopoMode(t);
+  renderRuns(local, t.ledger);
+  renderSwitchyardExtras(t, local, pend);
+
+  /* v25.3: 双端连接图 — 灯色语义: 两端通=双绿灯+虚线流动, 仅一端通=该端红灯呼吸警示, 无数据=空心灰 */
+  const softsHtml=(t.softs||[]).map(s=>{
+    const mbpOn=s.mbp===true, miniOn=s.mini===true;
+    const mbpInst=s.mbp_inst===true, miniInst=s.mini_inst===true;
+    const both=mbpOn&&miniOn;
+    const flowable=s.flow!==false;
+    // 四态灯: 绿=在线 / 红=仅单端在线 / 空心=装了未运行 / 极淡=未装
+    const lamp=(on,inst)=>on?(both?'on-green':'on-red'):(inst?'inst':'ghost');
+    const mbpCls=lamp(mbpOn,mbpInst), miniCls=lamp(miniOn,miniInst);
+    const lineCls=both&&flowable?'conn-line flow':'conn-line';
+    const st=t=>({on:'在线',inst:'装了未运行',ghost:'未装',none:'无上报/无探测'}[t]);
+    const stateTxt=both?(flowable?'两端在线 · 数据交互中':'两端在运行 · 无跨机联动通道')
+      :(mbpOn||miniOn)?`仅${mbpOn?'对端':'本机'}在线`
+      :(mbpInst||miniInst)?'已安装 · 当前未运行':'未安装';
+    const title=`${s.name} · ${s.method}\n${stateTxt}\n本机:${st(miniOn?'on':miniInst?'inst':s.mini===null?'none':'ghost')} / 对端:${st(mbpOn?'on':mbpInst?'inst':s.mbp===null?'none':'ghost')}`;
+    return `<div class="conn-item${(!miniInst&&mbpInst)?' remote-only':''}" title="${esc(title)}">
+      <span class="conn-lamp ${mbpCls}"></span><span class="conn-tag">MBP</span>
+      <span class="${lineCls}"></span>
+      <span class="conn-name">${esc(softShort(s.name))}</span>
+      <span class="${lineCls}"></span>
+      <span class="conn-tag">Mini</span><span class="conn-lamp ${miniCls}"></span>
+    </div>`;
+  }).join('');
+  $('softs').innerHTML=softsHtml?'<div class="conn-grid">'+softsHtml+'</div>':'<span class="offline">无数据</span>';
+  const nOn=(t.softs||[]).filter(s=>s.mbp===true||s.mini===true).length;
+  if($('softs-n'))$('softs-n').textContent=`已装 ${(t.softs||[]).length} · 运行 ${nOn}`;
+  // v28: 每日自优化任务真实状态 (后端查 launchctl/systemctl, 不再写死 00:00 Armed)
+  const opt=(t.daily_opt)||null;
+  if($('opt-when')) $('opt-when').textContent = opt ? `${opt.next||'—'} 自优化` : '自优化 —';
+  if($('opt-state')){
+    $('opt-state').textContent = opt ? (opt.loaded ? (opt.last_exit===0?'已装载':'装载·上次异常') : '未装载') : '未配置';
+    $('opt-state').style.color = opt&&opt.loaded ? 'var(--fg)' : 'var(--dim2)';
+  }
+}
+
+/* ── 流程: 拓扑图 + 运行记录 + 时间线 ── */
+const KEYMAP={'p_mbp':'mbp','p_zs':'zs','p_mx':'mx','p_a2a':'a2a','p_ss':'ss','p_six':'six',
+              'd_mbp':'mbp','d_disp':'d_disp','d_a2a':'a2a','d_exec':'d_exec'};
+const PRI={'pending':0,'done':1,'blocked':2,'running':3};
+const STEP_LABELS={'mbp':['02','MBP 接活'],'zs':['03','中书省 · 起草'],'mx':['04','门下省 · 审核'],
+  'd_disp':["04'",'直达派发'],'a2a':['05','A2A 跨机派发'],'ss':['06','尚书省 · 调度'],
+  'six':['07','六部执行'],'d_exec':["07'",'Mini Agent 执行'],'ret':['08','结果回传']};
+let runs=[];
+let lastFlowKey=null;
+
+const EDGES=[
+  ['mbp','br_pipe','v','mbp','zs'],
+  ['mbp','br_direct','v','mbp','d_disp'],
+  ['zs','mx','h','zs','mx'],
+  ['br_pipe','a2a','v','mx','a2a'],
+  ['br_direct','a2a','v','d_disp','a2a'],
+  ['a2a','br_exec_p','v','a2a','ss'],
+  ['a2a','br_exec_d','v','a2a','d_exec'],
+  ['ss','six','h','ss','six'],
+  ['br_exec_p','ret','v','six','ret'],
+  ['br_exec_d','ret','v','d_exec','ret']];
+const BR={br_pipe:'#br-pipe',br_direct:'#br-direct',br_exec_p:'#br-exec-pipe',br_exec_d:'#br-exec-direct'};
+function elbow(sx,sy,ex,ey,dir){
+  const r=6;
+  if(dir==='v'){
+    if(Math.abs(sx-ex)<2)return `M${sx},${sy} L${ex},${ey}`;
+    const my=Math.round((sy+ey)/2), s=Math.sign(ex-sx)||1;
+    return `M${sx},${sy} L${sx},${my-r} Q${sx},${my} ${sx+s*r},${my} L${ex-s*r},${my} Q${ex},${my} ${ex},${my+r} L${ex},${ey}`;
+  }
+  if(Math.abs(sy-ey)<2)return `M${sx},${sy} L${ex},${ey}`;
+  const mx=Math.round((sx+ex)/2), s=Math.sign(ey-sy)||1;
+  return `M${sx},${sy} L${mx-r},${sy} Q${mx},${sy} ${mx},${sy+s*r} L${mx},${ey-s*r} Q${mx},${ey} ${mx+r},${ey} L${ex},${ey}`;
+}
+function drawEdges(){
+  const wf=$('wf'), svg=$('edges-svg');
+  if(!wf||!svg)return;
+  const wr=wf.getBoundingClientRect();
+  const W=wf.scrollWidth,H=wf.scrollHeight;
+  svg.setAttribute('width',W);svg.setAttribute('height',H);
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const pos=k=>{const el=BR[k]?wf.querySelector(BR[k]):wf.querySelector(`[data-k="${k}"]`);
+    if(!el)return null;
+    const r=el.getBoundingClientRect();
+    return {l:r.left-wr.left+wf.scrollLeft,t:r.top-wr.top+wf.scrollTop,w:r.width,h:r.height};};
+  let s=`<defs>`+
+    [['arr-g','#9a958c'],['arr-b','#f25c2a'],['arr-n','#18181b']].map(([id,fill])=>
+    `<marker id="${id}" viewBox="0 0 8 8" refX="7.5" refY="4" markerWidth="5.5" markerHeight="5.5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="${fill}"/></marker>`
+    ).join('')+`</defs>`;
+  for(const [a,b,dir,sa,sb] of EDGES){
+    const A=pos(a),B=pos(b);if(!A||!B)continue;
+    let d;
+    if(dir==='v'){
+      const sx=A.l+A.w/2, sy=A.t+A.h+2, ex=B.l+B.w/2, ey=B.t-2;
+      d=elbow(sx,sy,ex,ey,'v');
+    }else{
+      const sx=A.l+A.w+2, sy=A.t+A.h/2, ex=B.l-2, ey=B.t+B.h/2;
+      d=elbow(sx,sy,ex,ey,'h');
+    }
+    s+=`<path class="edge" id="eg-${sa}-${sb}" d="${d}" marker-end="url(#arr-g)"/>`;
+  }
+  svg.innerHTML=s;
+  setupLiquidFlow();
+}
+/* ── v29 液态粒子流: live 边上沿路径流动的极小字符 (替代虚线跳动) ── */
+let _liq = [];
+const LIQ_CHARS = '01·10/1+x01·10·1a10';
+
+function _liqText(pathEl, svg, slow){
+  const L = pathEl.getTotalLength();
+  if(L < 8) return null;                            // 极短边也放字符
+  const per = slow ? (L < 26 ? 6 : 5.2) : (L < 26 ? 3.4 : 2.7);
+  const n = Math.max(12, Math.min(320, Math.round(L * 2 / per)));  // 2×路径长度, 无缝循环
+  const seed = (pathEl.id || '').length;
+  let spans = '';
+  for(let i = 0; i < n; i++){
+    const ch = LIQ_CHARS.charAt((i * 3 + seed) % LIQ_CHARS.length);
+    spans += `<tspan style="animation-delay:-${((i * 0.055) % 0.82).toFixed(3)}s">${ch}</tspan>`;
+  }
+  const href = pathEl.id ? `#${pathEl.id}` : (pathEl.getAttribute('d') ? null : null);
+  if(!href) return null;
+  const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  text.setAttribute('class', slow ? 'liquid done-flow' : 'liquid');
+  text.innerHTML = `<textPath href="${href}" startOffset="0%">${spans}</textPath>`;
+  svg.appendChild(text);
+  const tp = text.querySelector('textPath');
+  return {text, tp, L, phase: (seed * 7) % 100};
+}
+
+function setupLiquidFlow(){
+  const svg = $('edges-svg');
+  if(!svg) return;
+  // 清理不再 live 的
+  _liq = _liq.filter(o => {
+    const keep = o.path.isConnected &&
+      (o.path.classList.contains('live') || o.path.classList.contains('done'));
+    if(keep) return true;
+    o.text.remove(); return false;
+  });
+  const have = new Set(_liq.map(o => o.path));
+  for(const p of svg.querySelectorAll('path.edge.live, path.edge.done')){
+    if(have.has(p)) continue;
+    const o = _liqText(p, svg, !p.classList.contains('live'));   // done → 余流
+    if(o) _liq.push({path: p, ...o});
+  }
+  if(_liq.length && !window._liqRAF) window._liqRAF = requestAnimationFrame(stepLiquidFlow);
+}
+
+function stepLiquidFlow(ts){
+  let live = false;
+  for(const o of _liq){
+    const isLive = o.path.classList.contains('live');
+    if(!o.path.isConnected || (!isLive && !o.path.classList.contains('done'))) continue;
+    live = true;
+    // 0 → -100% 无缝循环; live 快 (ts/72), done 慢 (ts/175) = 已流过的数据余流
+    const pct = -100 + (((ts / (isLive ? 72 : 175)) + o.phase) % 100);   // -100% → 0% 递增 = 沿路径正向流动
+    o.tp.setAttribute('startOffset', pct.toFixed(2) + '%');
+  }
+  if(live) window._liqRAF = requestAnimationFrame(stepLiquidFlow);
+  else { _liq.forEach(o => o.text.remove()); _liq = []; window._liqRAF = null; }
+}
+
+function updateEdges(agg,f){
+  const stOf=k=>k==='ret'?(((f&&f.current)||'').includes('完成')?'done':'pending'):(agg[k]||'pending');
+  for(const [,,,ka,kb] of EDGES){
+    const p=document.getElementById(`eg-${ka}-${kb}`);if(!p)continue;
+    const sa=stOf(ka), sb=stOf(kb);
+    let st='idle';
+    if(sa==='running'||sb==='running')st='live';
+    else if(sa==='done'&&sb==='done')st='done';
+    p.classList.toggle('live',st==='live');
+    p.classList.toggle('done',st==='done');
+    p.setAttribute('marker-end',st==='live'?'url(#arr-b)':st==='done'?'url(#arr-n)':'url(#arr-g)');
+  }
+  setupLiquidFlow();
+}
+function fitWorkflow(){
+  const wf=document.getElementById('wf'), inner=document.getElementById('wf-inner');
+  if(!wf||!inner) return 1;
+  const w=wf.clientWidth||680;
+  // v26.4: 高度也参与缩放 — 节点图 zoom 后完整可见, 泳道区常驻不滚
+  const availH=wf.clientHeight-8;
+  const contentH=inner.scrollHeight;
+  let s=Math.min(w/680, availH>60&&contentH>availH?availH/contentH:1);
+  s=Math.max(0.55, Math.min(1, s));
+  inner.style.zoom=s.toFixed(3);
+  wf.style.setProperty('--wfs', s.toFixed(3));
+  return s;
+}
+const _demoBtn = document.getElementById('wf-demo');
+if(_demoBtn) _demoBtn.addEventListener('click', toggleDemo);
+const _swBtn = document.getElementById('topo-toggle');
+if(_swBtn) _swBtn.addEventListener('click', ()=>{
+  _topoManual = (_topoMode === 'dyn') ? 'static' : 'dyn';
+  _topoMode = null;
+  if(window.__lastTopo) applyTopoMode(window.__lastTopo);
+});
+window.addEventListener('resize',()=>{clearTimeout(window._egT);window._egT=setTimeout(()=>{fitWorkflow();drawEdges()},150)});
+if(window.ResizeObserver){
+  new ResizeObserver(()=>{clearTimeout(window._egT);window._egT=setTimeout(()=>{fitWorkflow();drawEdges()},120)})
+    .observe(document.getElementById('wf'));
+}
+fitWorkflow();
+setTimeout(drawEdges,200);
+
+
+/* ══ v28 动态拓扑 (C 模式): 按扫描到的 agent 生成可派发图 ══
+   判定: 有编排推送 → 静态编排链; 配置了 profiles(自己搭过编排) → 静态骨架;
+         两者都没有 → 扫描生成的 agent 图 (别人机器首装即有此图) */
+let _topoMode = null;   // 'flow' | 'static' | 'dyn'
+let _topoManual = null; // 用户手动切换后的模式
+
+const KIND_LBL = {agent:'AGENT',ide:'IDE',runtime:'RUNTIME',platform:'PLATFORM',sync:'SYNC',net:'NET'};
+const AGENT_KINDS = new Set(['agent','platform']);
+
+function topoModeFor(t){
+  if(_topoManual) return _topoManual;
+  const flow = t && t.flow;
+  if(flow && flow.current) return 'flow';
+  const roles = (t && t.a2a && t.a2a.profiles) || {};
+  const hasProfiles = Object.keys(roles).length > 0;
+  const softs = (t && t.softs) || [];
+  const inst = softs.filter(s => s.mini_inst || s.mbp_inst);
+  // 装了 ≥1 个 agent 且没配置编排体系 → 动态图更有意义
+  if(!hasProfiles && inst.length) return 'dyn';
+  return 'static';
+}
+
+function renderDynamicTopo(t){
+  const box = $('wf-dynamic');
+  if(!box) return;
+  const softs = (t && t.softs) || [];
+  const inst = softs.filter(s => s.mini_inst || s.mbp_inst);
+  const local = (t && t.a2a && t.a2a.localName) || 'Local';
+  const online = s => s.mini === true || s.mbp === true;
+  const byKind = k => inst.filter(s => (s.kind||'agent') === k);
+
+  // 主链只放「可派发」的 agent/platform; 其余 kind 作为附属信息 (不连线, 避免交叉)
+  const CAP = 5;
+  const allMain = [...byKind('agent'), ...byKind('platform')].sort((a,b)=>(online(b)?1:0)-(online(a)?1:0));
+  const main = allMain.slice(0, CAP);
+  const moreN = allMain.length - main.length;
+  const sideKinds = ['runtime','ide','sync','net'];
+  const sideLine = sideKinds.map(k => {
+    const arr = byKind(k);
+    if(!arr.length) return null;
+    const lbl = {runtime:'算力',ide:'IDE',sync:'同步',net:'通道'}[k];
+    return `<span class="wf-side-item" title="${arr.map(x=>esc(x.name)+(online(x)?'(在线)':'(未跑)')).join(' · ')}">${lbl}: ${arr.map(x=>esc(x.name)).join(' · ')}</span>`;
+  }).filter(Boolean).join('');
+
+  const chip = s => {
+    const on = online(s), both = s.mini===true && s.mbp===true;
+    const cls = on ? (both?'on-green':'on-red') : 'inst';
+    const ttl = `${s.name} · ${s.method||''}\n本机:${s.mini===true?'在线':s.mini_inst?'装了未跑':'未装'} / 对端:${s.mbp===true?'在线':s.mbp_inst?'装了未跑':'未装'}`;
+    return `<div class="fnode wf-chip${on?' active':''}" data-id="${esc(s.id||s.name)}" title="${ttl}">
+      <span class="wf-lamp ${cls}"></span><span class="wf-chip-t">${esc(s.name)}</span></div>`;
+  };
+
+  const nOn = main.filter(online).length;
+  box.innerHTML = `
+    <div class="fnode stage wf-top" style="width:min(400px,84%)">
+      <div class="no">02</div><div class="t">${esc(local)} 接活</div>
+      <div class="d">可派发 ${main.length} · 在线 ${nOn}</div>
+    </div>
+    <div class="wf-chain" id="wf-chain">${main.length
+      ? main.map(chip).join('') + (moreN>0 ? `<div class="fnode wf-chip" title="${esc(allMain.slice(CAP).map(x=>x.name).join(' · '))}"><span class="wf-chip-t" style="color:var(--dim2)">+${moreN}</span></div>` : '')
+      : '<div class="wf-empty">未扫描到可派发的 agent<br><span>在 config.json 的 discovered 里加，或重跑 installer</span></div>'}</div>
+    <div class="fnode stage wf-bottom" style="width:min(400px,84%)">
+      <div class="no">08</div><div class="t">结果回传</div>
+      <div class="d">${nOn ? nOn+' 个 agent 可用' : '等待 agent 上线'}</div>
+    </div>
+    ${sideLine ? `<div class="wf-side">${sideLine}</div>` : ''}`;
+}
+
+/* 动态图连线: 总线下引 (接活→水平分配线→各 chip; chip→汇聚线→回传), 无交叉 */
+function drawDynamicEdges(){
+  const box = $('wf-dynamic'), svg = $('edges-svg'), wf = $('wf');
+  if(!box || !svg || !wf) return;
+  const wr = wf.getBoundingClientRect();
+  const W = wf.scrollWidth, H = wf.scrollHeight;
+  const top = box.querySelector('.wf-top');
+  const bottom = box.querySelector('.wf-bottom');
+  const chips = [...box.querySelectorAll('.wf-chip[data-id]')];
+  if(!top || !bottom || !chips.length){ svg.innerHTML = ''; return; }
+  const rel = el => { const r = el.getBoundingClientRect();
+    return {l:r.left-wr.left, t:r.top-wr.top, w:r.width, h:r.height, cx:r.left-wr.left+r.width/2}; };
+  const A = rel(top), B = rel(bottom);
+  const Cs = chips.map(rel);
+  const busTop = A.t + A.h + 16;
+  const busBot = B.t - 16;
+  let d = `<defs><marker id="dyn-arr" viewBox="0 0 8 8" refX="7.5" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#b8b2a8"/></marker></defs>`;
+  const ax = A.cx, bx = B.cx;
+  const minX = Math.min(...Cs.map(c=>c.cx)), maxX = Math.max(...Cs.map(c=>c.cx));
+  // 接活 → 水平分配线
+  d += `<path class="edge dyn" d="M${ax},${A.t+A.h+2} L${ax},${busTop}"/>`;
+  if(Cs.length > 1) d += `<path class="edge dyn" d="M${minX},${busTop} L${maxX},${busTop}"/>`;
+  Cs.forEach(c => { d += `<path class="edge dyn" d="M${c.cx},${busTop} L${c.cx},${c.t-2}" marker-end="url(#dyn-arr)"/>`; });
+  // chip → 汇聚线 → 回传
+  Cs.forEach(c => { d += `<path class="edge dyn" d="M${c.cx},${c.t+c.h+2} L${c.cx},${busBot}"/>`; });
+  if(Cs.length > 1) d += `<path class="edge dyn" d="M${minX},${busBot} L${maxX},${busBot}"/>`;
+  d += `<path class="edge dyn" d="M${bx},${busBot} L${bx},${B.t-2}" marker-end="url(#dyn-arr)"/>`;
+  svg.setAttribute('width', W); svg.setAttribute('height', H);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = d;
+}
+
+function applyTopoMode(t){
+  const mode = topoModeFor(t);
+  const st = $('wf-static'), dy = $('wf-dynamic');
+  if(!st || !dy) return mode;
+  const changed = (mode !== _topoMode);
+  _topoMode = mode;
+  if(mode === 'dyn'){
+    if(changed){ st.style.display = 'none'; dy.style.display = 'flex'; }
+    renderDynamicTopo(t);        // 每帧重画 (agent 在线态会变)
+    drawDynamicEdges();
+    $('wf-state').textContent = 'AGENT 图';
+  }else if(changed){
+    dy.style.display = 'none';
+    st.style.display = 'flex';
+    setTimeout(()=>{ fitWorkflow(); drawEdges(); }, 30);
+  }
+  return mode;
+}
+
+/* ── 演示模式: 点击按钮循环播放 02→08 完整数据流动 (纯视觉预览, 不伪造账本) ── */
+let _demoTimer = null, _demoSteps = null, _demoOrigUE = null;
+function toggleDemo(){
+  const btn = $('wf-demo');
+  if(_demoTimer || _demoOrigUE){                       // 已在演示 → 停止并还原
+    clearTimeout(_demoTimer); _demoTimer = null;
+    if(_demoOrigUE){ updateEdges = _demoOrigUE; _demoOrigUE = null; }
+    document.querySelectorAll('#edges-svg path.edge').forEach(p=>p.classList.remove('live','done'));
+    document.querySelectorAll('#edges-svg text.liquid').forEach(t=>t.remove());
+    _liq = []; if(window._liqRAF){ cancelAnimationFrame(window._liqRAF); window._liqRAF = null; }
+    document.querySelectorAll('#wf-static .fnode').forEach(el=>el.classList.remove('active','done'));
+    if(btn) btn.textContent = '▶ 演示';
+    return;
+  }
+  if(!_demoOrigUE){ _demoOrigUE = updateEdges; updateEdges = function(){}; }   // 冻结真实状态刷新
+  // 演示前清空所有边的真实残留状态 (否则真实 done 的旁支会一起亮, 看起来两条路都走过)
+  document.querySelectorAll('#edges-svg path.edge').forEach(p=>p.classList.remove('live','done'));
+  document.querySelectorAll('#edges-svg text.liquid').forEach(t=>t.remove());
+  _liq = []; if(window._liqRAF){ cancelAnimationFrame(window._liqRAF); window._liqRAF = null; }
+  if(btn) btn.textContent = '■ 停止';
+  const chain = ['eg-mbp-zs','eg-zs-mx','eg-mx-a2a','eg-a2a-ss','eg-ss-six','eg-six-ret'];
+  const nodes = ['mbp','zs','mx','a2a','ss','six','ret'];
+  let i = 0;
+  const tick = () => {
+    if(i > 0){ const prev = document.getElementById(chain[i-1]); if(prev){ prev.classList.remove('live'); prev.classList.add('done'); } }
+    if(i < chain.length){ const cur = document.getElementById(chain[i]); if(cur) cur.classList.add('live'); }
+    document.querySelectorAll('#wf-static .fnode[data-k]').forEach(el=>{
+      const k = el.dataset.k, idx = nodes.indexOf(k);
+      el.classList.remove('active','done');
+      if(idx === i) el.classList.add('active');
+      else if(idx >= 0 && idx < i) el.classList.add('done');
+    });
+    setupLiquidFlow();
+    i++;
+    _demoTimer = setTimeout(i <= chain.length ? tick : ()=>{ toggleDemo(); }, i <= chain.length ? 1150 : 2200);
+  };
+  tick();
+}
+
+function renderFlow(f, local, pendRaw){
+  const pend=Number(pendRaw)||0;
+  const lw=local?(local.warm||0):0;
+  const lm=local?(local.mbpWarm||0):0;
+  const li=local?(local.miniWarm||0):0;
+  const wfNodes=document.querySelectorAll('.wf .fnode[data-k]');
+  const pipe=!!f&&f.mode==='pipeline', dir=!!f&&f.mode==='direct';
+  $('br-pipe').classList.toggle('on',pipe);
+  $('br-direct').classList.toggle('on',dir);
+  $('br-exec-pipe').classList.toggle('on',pipe);
+  $('br-exec-direct').classList.toggle('on',dir);
+  let agg={};
+  if(f&&f.nodes){
+    for(const [k,st] of Object.entries(f.nodes)){
+      const dk=KEYMAP[k];if(!dk)continue;
+      if((PRI[st]||0)>(PRI[agg[dk]]||0))agg[dk]=st;
+    }
+    if(f.mode==='direct'){
+      // direct: 直达分支的 d_disp / 08 的 ret 用已映射的通用键回填 (agg 键已过 KEYMAP)
+      if(!agg['d_disp']&&agg['a2a'])agg['d_disp']=agg['a2a'];
+      if(!agg['ret']&&agg['d_exec'])agg['ret']=agg['d_exec'];
+    }
+  }
+  const wfSt=!f?(lw?`本机待命 · 活跃×${lw}`:'全部待命'):(f.current||'').includes('完成')?'COMPLETED':(f.current||'').includes('驳回')?'REJECTED':(agg['a2a']==='running'||agg['ss']==='running'||agg['d_exec']==='running')?'EXECUTING':'DISPATCHING';
+  $('wf-state').textContent=wfSt;
+  $('hero-stage').textContent=pend>0?`Welcome in, Stage 08 · 待回传 ×${pend}`:(f&&f.current?`Welcome in, ${f.current}`:`Welcome in, Stage 08 · ${wfSt}`);
+
+  updateEdges(agg,f);
+  wfNodes.forEach(n=>{
+    const st=(agg[n.dataset.k]||'pending');
+    const susp=(n.dataset.k==='ret'&&pend>0);
+    n.classList.remove('active','done','blocked','susp');
+    if(susp)n.classList.add('susp');
+    else if(st==='running')n.classList.add('active');
+    else if(st==='done')n.classList.add('done');
+    else if(st==='blocked')n.classList.add('blocked');
+    if(n.dataset.k==='ret'){
+      const d=$('ret-desc');
+      if(d)d.textContent=susp?`待回传 ×${pend} · MBP 离线挂起`:'汇总呈报';
+    }
+  });
+  const PM=window.__profModel||{mbp:{},mini:{}};
+  const setT=(k,host,name)=>{const n=document.querySelector(`.fnode[data-k="${k}"]`);
+    const mdl=(PM[host]||{})[name];
+    if(n&&mdl)n.title=`${host==='mbp'?'MBP':'Mini'}/${name} · ${mdl}`;};
+  setT('mbp','mbp','default'); setT('zs','mbp','zhongshu'); setT('mx','mbp','menxia');
+  setT('ss','mini','shangshu'); setT('d_exec','mini','default');
+  const mbpNode=document.querySelector('.wf .fnode[data-k="mbp"]');
+  const mbpDesc=$('mbp-desc');
+  if(!f&&lm>0){
+    if(mbpNode)mbpNode.classList.add('active');
+    if(mbpDesc)mbpDesc.textContent=`本机直跑 ×${lm} · 5分钟内活跃 · 未跨机`;
+  }else if(mbpDesc){
+    mbpDesc.textContent='三德子 · 任务分流';
+  }
+  const MIN_MAP={'吏部':'lihu','户部':'hubu','礼部':'libu','兵部':'bingbu','刑部':'xingbu','工部':'gongbu'};
+  const sixSt=agg['six']||'pending';
+  const txt=((f&&f.current)||'')+' '+((f&&f.detail)||'');
+  const act=window.__miniAct||{};
+  document.querySelectorAll('#sixbox .mchip').forEach(ch=>{
+    const zh=ch.dataset.m, prof=MIN_MAP[zh];
+    const d=act[prof];
+    const profActive=!!(d&&d.active_now>0);
+    const nowS=Date.now()/1000;
+    const recentDone=!!(d&&!profActive&&d.last&&(nowS-d.last)<900);
+    const mentioned=txt.includes(zh);
+    const mdl=(PM.mini||{})[prof];
+    if(mdl)ch.title=`Mini/${prof} · ${mdl}`+(d?` · ${d.sessions}会话 · 最后活动${Math.max(0,Math.round((nowS-d.last)/60))}分钟前`:'');
+    ch.classList.remove('run','done');
+    if(profActive||(mentioned&&sixSt==='running'))ch.classList.add('run');
+    else if(recentDone||(mentioned&&sixSt==='done'))ch.classList.add('done');
+  });
+  if(f){
+    const key=f.task+'|'+f.updated_at;
+    if(key!==lastFlowKey){
+      lastFlowKey=key;
+      if(!runs.length||runs[0].key!==key){
+        runs.unshift({key,task:f.task,mode:f.mode,current:f.current,updated_at:f.updated_at});
+        if(runs.length>8)runs.pop();
+      }
+    }
+  }
+  if(!f||!f.nodes){
+    $('tl').innerHTML=lw
+      ? `<div class="empty">无编排事件 · 本机任务（5 分钟内活跃）MBP ${lm} · Mini ${li}</div>`
+      : '<div class="empty">等待编排器事件…</div>';
+    $('tl-mode').textContent=lw?'本机活跃':'空闲';
+    return;
+  }
+  $('tl-mode').textContent=f.mode==='pipeline'?'PIPELINE':'DIRECT';
+}
+
+const mask5=s=>{const t=String(s??'');return t.length<=5?t:t.slice(0,5)+'*'.repeat(t.length-5);};
+const SRC_BADGE={
+  'orchestrator':{cls:'pipe', tag:'编排'},
+  'im':{cls:'im', tag:'IM'},
+  'selfopt':{cls:'self', tag:'自优化'},
+  'daily':{cls:'self', tag:'自优化'},
+  'local-mbp':{cls:'local', tag:'本地·MBP'},
+  'local-mini':{cls:'local', tag:'本地·Mini'},
+};
+function badgeFor(src, mode){
+  if(src==='orchestrator') return mode==='pipeline'?{cls:'pipe',tag:'编排'}:{cls:'dir',tag:'直达'};
+  if(src && src.indexOf('im-')===0) return {cls:'im', tag:'IM·'+src.slice(3)};
+  const b=SRC_BADGE[src];
+  return b||{cls:'local', tag:'本地'};
+}
+function renderRuns(local, ledger){
+  const items=[];
+  (ledger||[]).forEach(x=>{
+    const b=badgeFor(x.source||'', x.mode||'');
+    const st=x.stalled?'stalled':(x.status||'');
+    const pend=x.delivery_status==='pending_mbp';
+    items.push({kind:'ledger', cls:b.cls, tag:b.tag, task:x.task||'(无标题)',
+      at:x.updated_at||0, live:(x.status==='running'&&!x.stalled),
+      st, arrow:(x.dispatch_host&&x.exec_host)?`${x.dispatch_host}→${x.exec_host}`:'',
+      pend, id:String(x.id||''), src:String(x.source||''), stt:String(x.status||''),
+      detail:String(x.detail||''), result:String(x.result_text||''),
+      updated:x.updated_at||0, delivered:String(x.delivered_at||'')});
+  });
+  ((local&&local.tasks)||[]).forEach(x=>{
+    const b=badgeFor(x.host==='MBP'?'local-mbp':'local-mini','');
+    items.push({kind:'local', cls:b.cls, tag:b.tag, task:x.title||'(无标题会话)',
+      at:x.at||0, live:!!x.live, stale:!!x.stale, arrow:x.host||'',
+      pend:false, detail:'', result:''});
+  });
+  const ledKeys=new Set((ledger||[]).map(x=>(x.task||'').slice(0,20)));
+  runs.filter(r=>!ledKeys.has((r.task||'').slice(0,20))).forEach(r=>items.push({
+    kind:'flow', cls:r.mode==='pipeline'?'pipe':'dir', tag:r.mode==='pipeline'?'编排':'直达',
+    task:r.task, at:r.updated_at||0, live:false, st:'', pend:false, detail:'', result:''}));
+  items.sort((a,b)=>b.at-a.at);
+  // v28.1: 显示条数按容器实际高度自适应 (填满不留白, 也不裁切)
+  const _rEl=$('runs');
+  const _avail=((_rEl&&_rEl.clientHeight)||240)-14;
+  const _cap=Math.max(4,Math.min(12,Math.floor(_avail/34)||6));
+  const top=items.slice(0,_cap);
+  const nB=local?(local.mbpWarm||0):0, nI=local?(local.miniWarm||0):0;
+  const ledN=(ledger||[]).length;
+  $('runs-n').textContent=`账本${ledN} · MBP×${nB} Mini×${nI} · 点击看全文`;
+  window.__runItems=top;
+  $('runs').innerHTML=top.length?top.map((r,i)=>{
+    const title=`${r.task}`;
+    return `<div class="run" data-i="${i}"${r.stale?' style="opacity:.6"':''}>
+      <span class="mode ${r.cls}">${esc(r.tag)}</span>
+      ${r.pend?`<span class="pend" title="delivery_status=pending_mbp · 等 MBP 上线回传">待回传</span>`:''}
+      ${r.st?`<span class="st-dot ${r.st==='done'?'done':r.st==='failed'?'failed':r.st==='stalled'?'stalled':'running'}" title="${esc(r.st)}"></span>`:''}
+      ${r.arrow?`<span class="host-arrow"><b>${esc(r.arrow.split('→')[0])}</b>→${esc(r.arrow.split('→')[1]||'')}</span>`:''}
+      <span class="tk" title="${esc(title)}">${r.live?'<span class="ldot"></span>':''}${esc(mask5(r.task))}</span>
+      <span class="tm">${ago(r.at)}</span>
+    </div>`;}).join(''):'<div class="empty">暂无运行记录</div>';
+}
+
+function runSection(title, text){
+  const has=(text!==undefined&&text!==null&&String(text)!=='');
+  return `<div class="msec"><div class="mh">${esc(title)}</div>`+
+    (has?`<pre>${esc(text)}</pre>`:'<div class="none">(无数据)</div>')+`</div>`;
+}
+function openRun(i){
+  const r=(window.__runItems||[])[i];
+  if(!r)return;
+  $('rm-title').textContent=r.task||'任务详情';
+  const meta=[['类型',r.kind==='ledger'?'任务账本':(r.kind==='local'?'本机会话':'旧编排记录')]];
+  if(r.kind==='ledger'){
+    meta.push(['任务ID',r.id||'—'],['状态',r.stt||r.st||'—'],['来源',r.src||'—'],
+              ['派发→执行',r.arrow||'—'],['更新',hm(r.updated)]);
+    if(r.delivered)meta.push(['交付',`${r.delivered} · delivered`]);
+    if(r.pend)meta.push(['交付态','pending_mbp · MBP 离线挂起']);
+  }else{
+    meta.push(['来源机',r.arrow||'—'],['时间',hm(r.at)]);
+  }
+  $('rm-body').innerHTML=meta.map(([k,v])=>
+      `<div class="mrow"><span class="mk">${esc(k)}</span><span class="mv">${esc(v)}</span></div>`).join('')
+    + runSection('detail', r.detail)
+    + runSection('result_text', r.result)
+    + ((r.detail||r.result)?'':
+        `<div class="msec"><div class="mh">note</div><div class="none">${
+          r.kind==='ledger'?'该任务在账本里没有 detail / result_text 字段。'
+          :'本机会话 / 旧编排条目不在任务账本中, 无 detail / result_text 字段。'}</div></div>`);
+  $('run-mask').hidden=false;
+}
+function closeRun(){$('run-mask').hidden=true;}
+$('runs').addEventListener('click',e=>{
+  const el=e.target.closest?e.target.closest('.run[data-i]'):null;
+  if(el)openRun(Number(el.dataset.i));
+});
+$('rm-close').addEventListener('click',closeRun);
+$('run-mask').addEventListener('click',e=>{if(e.target===$('run-mask'))closeRun();});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeRun();});
+
+function connect(){
+  const es=new EventSource(API+'/api/stream');
+  es.onmessage=e=>{render(JSON.parse(e.data))};
+  es.onerror=()=>{
+    es.close();
+    $('sys-dot').className='dot wait';
+    $('sys-text').textContent='重连中…';$('sys-text').style.color='var(--warn)';
+    setTimeout(connect,3000);
+  };
+}
+connect();
+
+let firstLoad=true;
+async function doPing(){
+  const b=$('pingbtn');b.disabled=true;
+  try{const r=await fetch(API+'/api/ping');const d=await r.json();
+    $('lat').textContent=d.ok?`${d.ms}ms`:'失败';
+    const kv=$('k-lat');kv.innerHTML=d.ok?`${d.ms}<small>ms</small>`:'失败';kv.className='v'+(d.ok?' ok':' bad');
+    $('reply').textContent=d.ok?`A2A 往返 "${d.reply}" · ${d.ms}ms`:(d.error||'未知错误');
+  }catch(e){$('reply').textContent='请求失败'}
+  b.disabled=false;
+}
+setTimeout(()=>{if(firstLoad){firstLoad=false;doPing()}},800);
+
+/* ── v25.2: 全屏 + iPad/桌面屏幕常亮防锁屏 (Screen Wake Lock API) ── */
+let __wakeLock=null;
+async function acquireWakeLock(){
+  try{
+    if('wakeLock' in navigator && !__wakeLock){
+      __wakeLock=await navigator.wakeLock.request('screen');
+      __wakeLock.addEventListener('release',()=>{__wakeLock=null;updateFsBtn();});
+    }
+  }catch(e){}
+}
+async function releaseWakeLock(){
+  try{if(__wakeLock){await __wakeLock.release();__wakeLock=null;}}catch(e){}
+}
+function isFsActive(){
+  return !!(document.fullscreenElement||document.webkitFullscreenElement||document.body.classList.contains('kiosk-mode'));
+}
+function updateFsBtn(){
+  const b=$('fsbtn');if(!b)return;
+  const on=isFsActive();
+  b.classList.toggle('on',on);
+  b.textContent=on?(__wakeLock?'✕ 退出全屏 · 常亮中':'✕ 退出全屏'):'⛶ 全屏常亮';
+  setTimeout(()=>{fitWorkflow();drawEdges();},180);
+}
+async function toggleFullscreen(){
+  const de=document.documentElement;
+  const req=de.requestFullscreen||de.webkitRequestFullscreen;
+  const exit=document.exitFullscreen||document.webkitExitFullscreen;
+  if(!isFsActive()){
+    document.body.classList.add('kiosk-mode');
+    await acquireWakeLock();
+    if(req){try{await req.call(de);}catch(e){}}
+  }else{
+    document.body.classList.remove('kiosk-mode');
+    await releaseWakeLock();
+    if((document.fullscreenElement||document.webkitFullscreenElement)&&exit){
+      try{await exit.call(document);}catch(e){}
+    }
+  }
+  updateFsBtn();
+}
+document.addEventListener('fullscreenchange',updateFsBtn);
+document.addEventListener('webkitfullscreenchange',updateFsBtn);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&isFsActive())acquireWakeLock();});
+document.addEventListener('keydown',e=>{
+  if((e.key==='f'||e.key==='F') && !e.metaKey && !e.ctrlKey && !e.altKey && $('run-mask').hidden){
+    toggleFullscreen();
+  }
+});
+// 页面打开默认尝试申请一次屏幕常亮 (iPad 挂屏不息屏)
+acquireWakeLock();
+</script>
+</body>
+</html>

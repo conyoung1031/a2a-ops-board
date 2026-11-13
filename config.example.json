@@ -1,0 +1,30 @@
+{
+  "_comment": "由 installer.py 自动生成。手动改也可以, 改完重启服务生效。",
+  "mode": "single",
+  "local_name": "MyMac",
+  "remote_name": "Remote",
+  "web_port": 7844,
+  "gateway_url": "http://127.0.0.1:9900",
+  "gateway_port": 9900,
+  "remote": {
+    "host": "",
+    "gateway_port": 9900,
+    "ssh_port": 22,
+    "web_port": 7844
+  },
+  "profiles": {
+    "shangshu": "尚书省",
+    "zhongshu": "中书省",
+    "menxia": "门下省",
+    "gongbu": "工部",
+    "hubu": "户部",
+    "libu": "礼部",
+    "bingbu": "兵部",
+    "xingbu": "刑部",
+    "lihu": "吏部"
+  },
+  "services": {
+    "prefix": "com.hermes"
+  },
+  "dashboard_dir": ""
+}
