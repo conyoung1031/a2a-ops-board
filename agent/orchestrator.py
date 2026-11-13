@@ -8,6 +8,7 @@
 
 每一步转换都实时推送到 Mini 面板 (/api/flow), 面板跑马灯跟随真实步骤。
 """
+import os
 import json
 import re
 import sys
@@ -16,6 +17,51 @@ import urllib.request
 from pathlib import Path
 
 HOME = Path.home()
+_HERE = Path(__file__).resolve().parent
+
+
+def _load_conf():
+    """读 config.json（插件根或同级）；读不到返回 {}（dashboard 布局照旧）。"""
+    for cand in (_HERE.parent / "config.json", _HERE / "config.json"):
+        try:
+            if cand.is_file():
+                return json.loads(cand.read_text(encoding="utf-8")) or {}
+        except Exception:
+            continue
+    return {}
+
+
+CONF = _load_conf()
+
+
+def _resolve_dash():
+    """数据目录: env > config.dashboard_dir > 插件 data/ > 脚本同级目录。"""
+    env = os.environ.get("A2A_DASH_DIR")
+    if env:
+        return Path(env)
+    if CONF.get("dashboard_dir"):
+        return Path(CONF["dashboard_dir"])
+    if (_HERE.parent / "server").is_dir() or (_HERE.parent / "data").is_dir():
+        return _HERE.parent / "data"      # 插件布局: agent/ 的同级 data/
+    return _HERE                           # dashboard 布局: 脚本所在目录
+
+
+DASH = _resolve_dash()
+
+
+def _resolve_panel():
+    """面板地址: env > config.panel_url > config 本机端口 > MBP→Mini 旧默认。"""
+    env = os.environ.get("A2A_PANEL_URL")
+    if env:
+        return env.rstrip("/")
+    if CONF.get("panel_url"):
+        return str(CONF["panel_url"]).rstrip("/")
+    if CONF:
+        return "http://127.0.0.1:%s" % CONF.get("web_port", 7844)
+    return "http://100.110.231.32:7844"
+
+
+PANEL = _resolve_panel()
 CONF = HOME / ".hermes" / "config.yaml"
 ENV = HOME / ".hermes" / ".env"
 MBP_GW = "http://127.0.0.1:9900"
@@ -103,12 +149,12 @@ def board(task, mode, nodes, current, detail):
 
 # ── v28 超时回捞: 编排器等不到回报时, 去 Mini 面板查产物证明"活其实干完了" ──
 START_TS = time.time()
-MINI_PANEL = "http://100.110.231.32:7844"
+MINI_PANEL = PANEL  # v30: 由 config/env 解析, 不再硬编码
 
 
 def fetch_recent_artifacts(since, sub="reports"):
     """查 Mini 侧 since 之后新产生的产物文件 (证明任务实际完成)."""
-    url = f"{MINI_PANEL}/api/recent-artifacts?since={int(since)}&sub={sub}"
+    url = "%s/api/recent-artifacts?since=%d&sub=%s" % (MINI_PANEL, int(since), sub)
     try:
         req = urllib.request.Request(url, headers={"Authorization": f"Bearer {TOKEN}"})
         with urllib.request.urlopen(req, timeout=8) as r:
@@ -125,7 +171,7 @@ CURRENT_TASK = ""
 CURRENT_MODE = ""
 
 
-LEDGER_QUEUE = HOME / ".hermes" / "cache" / "scratch" / "ledger_queue.jsonl"
+LEDGER_QUEUE = DASH / "cache" / "ledger_queue.jsonl"  # v30: 跟数据目录走
 
 
 def _post_ledger(payload, attempts=3):
@@ -238,6 +284,202 @@ def is_partial(reply):
     return first.startswith("[SHANGSHU_PARTIAL]")
 
 
+
+# ── v30 --mode daily: 每日 00:00 本机自检 + 日报 (不自动改代码, 避免炸面板) ──
+DAILY_NODES = ["p_mbp", "p_zs", "p_mx", "p_a2a", "p_ss", "p_six"]
+
+
+def _dget(url, timeout=6):
+    t0 = time.time()
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "a2a-orchestrator/daily"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return r.status, r.read(), int((time.time() - t0) * 1000)
+    except Exception as e:
+        return 0, str(e)[:150].encode(), int((time.time() - t0) * 1000)
+
+
+def _daily_stats():
+    """昨日各 profile 会话/消息数 (读本机 state.db + profiles/*/state.db)."""
+    import sqlite3
+    from datetime import datetime, timedelta
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    y0 = (today - timedelta(days=1)).timestamp()
+    y1 = today.timestamp()
+    dbs = [(HOME / ".hermes" / "state.db", "default")]
+    pdir = HOME / ".hermes" / "profiles"
+    if pdir.is_dir():
+        for d in sorted(pdir.iterdir()):
+            if (d / "state.db").is_file():
+                dbs.append((d / "state.db", d.name))
+    rows = []
+    for db, name in dbs:
+        try:
+            con = sqlite3.connect("file:" + str(db) + "?mode=ro", uri=True)
+            n, m = con.execute(
+                "SELECT COUNT(*), COALESCE(SUM(message_count),0) FROM sessions "
+                "WHERE started_at >= ? AND started_at < ?", (y0, y1)).fetchone()
+            con.close()
+        except Exception:
+            continue
+        if n:
+            rows.append((name, int(n), int(m)))
+    return rows, datetime.fromtimestamp(y0).strftime("%Y-%m-%d")
+
+
+def _daily_db_health():
+    """a2a_metrics.db 各表行数 (面板自有历史层)."""
+    import sqlite3
+    out = {}
+    db = DASH / "a2a_metrics.db"
+    if not db.is_file():
+        return out
+    try:
+        con = sqlite3.connect("file:" + str(db) + "?mode=ro", uri=True)
+        for t in ("flow_events", "stage_marks", "probe_samples", "push_samples", "ledger"):
+            try:
+                out[t] = con.execute("SELECT COUNT(*) FROM " + t).fetchone()[0]
+            except Exception:
+                out[t] = -1
+        con.close()
+    except Exception:
+        pass
+    return out
+
+
+def daily_selfopt(task):
+    """每日自检: 会话统计 + 面板健康 + DB 健康 + 告警 → 日报落 reports/, 账本登记.
+
+    刻意不自动改代码/重启服务: 无人值守自改一旦出错整个面板就没了;
+    自检报告给人工 review, 真正的自动修复留到有回滚闸之后再上.
+    """
+    from datetime import datetime
+    day = datetime.now().strftime("%Y-%m-%d")
+    nodes = {k: "pending" for k in DAILY_NODES}
+    nodes["p_mbp"] = "running"
+    push_flow(board(task, "daily", nodes, "02 每日自检启动", "本机自检: 统计/健康/告警"))
+    step("02 每日自检启动", "mbp")
+    ledger("running", "每日自检启动")
+
+    warn = []
+    nodes["p_mbp"] = "done"
+    nodes["p_zs"] = "running"
+    stats, yday = _daily_stats()
+    total_s = sum(r[1] for r in stats)
+    total_m = sum(r[2] for r in stats)
+    push_flow(board(task, "daily", nodes, "03 会话统计", "%s 共 %d 会话 / %d 消息" % (yday, total_s, total_m)))
+    step("03 会话统计完成", "mbp")
+
+    nodes["p_zs"] = "done"
+    nodes["p_mx"] = "running"
+    checks = []
+    for path, label in (("/", "面板页面"), ("/api/topology", "topology"), ("/api/outbox", "outbox")):
+        code, body, ms = _dget(MINI_PANEL + path if "MINI_PANEL" in globals() else "http://127.0.0.1:7844" + path)
+        ok = code == 200
+        checks.append((label, code, ms, len(body)))
+        if not ok:
+            warn.append("面板 %s 返回 %s" % (label, code))
+    push_flow(board(task, "daily", nodes, "04 面板健康检查", "%d/%d 端点正常" % (sum(1 for c in checks if c[1] == 200), len(checks))))
+    step("04 面板健康检查完成", "mbp")
+
+    nodes["p_mx"] = "done"
+    nodes["p_a2a"] = "running"
+    dbh = _daily_db_health()
+    if not dbh:
+        warn.append("a2a_metrics.db 不存在或不可读")
+    push_flow(board(task, "daily", nodes, "05 历史层健康", "表: " + ", ".join("%s=%s" % kv for kv in dbh.items())))
+    step("05 历史层检查完成", "mbp")
+
+    nodes["p_a2a"] = "done"
+    nodes["p_ss"] = "running"
+    # 账本健康: running 超 10 分钟 = 僵尸
+    try:
+        cur = load_ledger_probe()
+        stale = [x for x in cur if x.get("status") == "running" and time.time() - (x.get("updated_at") or 0) > 600]
+        for x in stale:
+            warn.append("账本僵尸: %s 卡在 running" % x.get("id"))
+    except Exception as e:
+        warn.append("账本读取失败: %s" % str(e)[:60])
+    nodes["p_ss"] = "done"
+    nodes["p_six"] = "done"
+
+    # ── 落日报 ──
+    rep_dir = DASH / "reports"
+    try:
+        rep_dir.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    lines = []
+    lines.append("# %s A2A 运控台每日自检报告" % day)
+    lines.append("")
+    lines.append("> 由 `com.hermes.a2a-opt` 于每日 00:00 触发 `a2a_orchestrator.py --mode daily` 自动生成。")
+    lines.append("")
+    lines.append("## 一、会话统计（%s）" % yday)
+    lines.append("")
+    lines.append("| Profile | 会话数 | 消息数 |")
+    lines.append("|---|---|---|")
+    for name, n, m in stats:
+        lines.append("| %s | %d | %d |" % (name, n, m))
+    if not stats:
+        lines.append("| （昨日无会话） | 0 | 0 |")
+    lines.append("| **合计** | **%d** | **%d** |" % (total_s, total_m))
+    lines.append("")
+    lines.append("## 二、面板健康")
+    lines.append("")
+    for label, code, ms, ln in checks:
+        lines.append("- %s: HTTP %s (%dms, %dB)" % (label, code, ms, ln))
+    lines.append("")
+    lines.append("## 三、历史层（a2a_metrics.db）")
+    lines.append("")
+    if dbh:
+        for k, v in dbh.items():
+            lines.append("- %s: %s 行" % (k, v))
+    else:
+        lines.append("- 不可读")
+    lines.append("")
+    lines.append("## 四、告警")
+    lines.append("")
+    if warn:
+        for w in warn:
+            lines.append("- ⚠ " + w)
+    else:
+        lines.append("- 无")
+    lines.append("")
+    lines.append("## 五、待人工 review 的可改进点")
+    lines.append("")
+    lines.append("- 自检只做观测，不自动改代码（无人值守自改风险高，需先有回滚闸）")
+    lines.append("- 若面板端点耗时 > 2000ms 或告警非空，请看上面告警段")
+    lines.append("")
+    text = "\n".join(lines) + "\n"
+    fname = rep_dir / ("%s-daily.md" % day)
+    try:
+        fname.write_text(text, encoding="utf-8")
+        saved = str(fname)
+    except Exception as e:
+        saved = "写入失败: " + str(e)[:80]
+        warn.append("日报写入失败")
+
+    nodes["p_six"] = "done"
+    push_flow(board(task, "daily", nodes, "07 完成 · 每日自检", "报告: %s · 告警 %d 条" % (saved.split("/")[-1], len(warn))))
+    ledger("done" if not warn else "done", "每日自检完成 · 报告 %s · 告警 %d 条 · %d 会话/%d 消息" % (saved.split("/")[-1], len(warn), total_s, total_m))
+    print("[daily] 报告: %s" % saved)
+    print("[daily] 会话 %d / 消息 %d · 告警 %d 条" % (total_s, total_m, len(warn)))
+    for w in warn:
+        print("  ⚠ " + w)
+    return 0
+
+
+def load_ledger_probe():
+    """读本机面板账本 (供 daily 检查僵尸)."""
+    code, body, _ = _dget((MINI_PANEL if "MINI_PANEL" in globals() else "http://127.0.0.1:7844") + "/api/topology", timeout=8)
+    if code != 200:
+        return []
+    try:
+        return (json.loads(body.decode()) or {}).get("ledger") or []
+    except Exception:
+        return []
+
+
 def main():
     args = sys.argv[1:]
     mode = "auto"
@@ -260,7 +502,9 @@ def main():
     LEDGER_ID = f"orch-{time.strftime('%Y%m%d-%H%M%S')}"
     LEDGER_STEPS.clear()
 
-    if mode == "pipeline":
+    if mode == "daily":
+        sys.exit(daily_selfopt(task))
+    elif mode == "pipeline":
         nodes = {k: "pending" for k in PIPE_NODES}
         nodes["p_mbp"] = "running"
         push_flow(board(task, mode, nodes, "02 MBP 接活", "编排模式启动"))

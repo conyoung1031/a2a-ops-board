@@ -1,9 +1,10 @@
 {
-  "_comment": "由 installer.py 自动生成。手动改也可以, 改完重启服务生效。",
+  "_comment": "由 installer.py 自动生成。panel_url 留空 = 本机 127.0.0.1:<web_port>；双机时填对端面板地址（编排器推 flow 用）。",
   "mode": "single",
   "local_name": "MyMac",
   "remote_name": "Remote",
   "web_port": 7844,
+  "panel_url": "",
   "gateway_url": "http://127.0.0.1:9900",
   "gateway_port": 9900,
   "remote": {
