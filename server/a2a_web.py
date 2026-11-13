@@ -178,15 +178,34 @@ def record_flow_events(data):
         print(f"[db] flow_events failed: {str(e)[:90]}", flush=True)
 
 
+_LAST_PROBE = [0.0]
+_PROBE_N = [0]
+PROBE_MIN_INTERVAL = 30      # 与探测层 _cached(ttl=30) 对齐, 不再每次 /api/topology 都写
+PROBE_KEEP_DAYS = 7
+
+
 def record_probe(out):
-    """联动探测采样 (soft_matrix 每次重算落一条, 约 30s 一条)."""
+    """联动探测采样 (30s 节流 + 摘要化 payload).
+
+    原来 /api/topology 被 SSE 每 2s 拉一次, 每次都整份 softs 落库:
+    实测 1.8s/条 × 2237B = 101MB/天 → 7 天稳态 705MB.
+    现在: 30s 一条, payload 只留 {up,total,items:[{id,state}]} ≈ 600B → 约 1.7MB/天.
+    """
+    now = time.time()
+    if now - _LAST_PROBE[0] < PROBE_MIN_INTERVAL:
+        return
+    _LAST_PROBE[0] = now
     try:
+        items = [{"id": (x.get("name") or x.get("id") or ""), "state": x.get("state")}
+                 for x in (out or [])]
+        slim = {"up": sum(1 for i in items if i["state"] == "up"),
+                "total": len(items), "items": items}
         db_exec("INSERT INTO probe_samples(ts,payload) VALUES(?,?)",
-                (time.time(), json.dumps(out, ensure_ascii=False)))
-        # 每 40 条采样清一次 7 天前旧数据 (约 20 分钟一次, 开销可忽略)
-        if int(time.time()) % 40 < 2:
-            db_exec("DELETE FROM probe_samples WHERE ts < ?", (time.time() - 7 * 86400,))
-            db_exec("DELETE FROM push_samples WHERE ts < ?", (time.time() - 7 * 86400,))
+                (now, json.dumps(slim, ensure_ascii=False, separators=(",", ":"))))
+        _PROBE_N[0] += 1
+        if _PROBE_N[0] % 120 == 0:      # 约 1 小时清一次过期数据
+            db_exec("DELETE FROM probe_samples WHERE ts < ?", (now - PROBE_KEEP_DAYS * 86400,))
+            db_exec("DELETE FROM push_samples WHERE ts < ?", (now - PROBE_KEEP_DAYS * 86400,))
     except Exception:
         pass
 
