@@ -85,7 +85,34 @@ MBP_STALE_S = 75  # 超过 75s 无上报视为 MBP 离线
 STALE_LEDGER_S = 600  # 账本 running 超 10 分钟无更新 = 调用方可能已崩, 读取时标 stalled
 
 _ping = {"result": None}
+MBP_CACHE_FILE = None   # 在 DB_FILE 等路径确定后赋值 (见下方 _init_paths)
 _mbp_store = {"data": None, "at": 0.0}
+
+
+def _restore_mbp_cache():
+    """启动时恢复上次收到的对端上报; 时间戳保留, 超时自动按 stale 处理."""
+    try:
+        if MBP_CACHE_FILE and MBP_CACHE_FILE.is_file():
+            d = json.loads(MBP_CACHE_FILE.read_text(encoding="utf-8"))
+            if isinstance(d.get("data"), dict):
+                _mbp_store["data"] = d["data"]
+                _mbp_store["at"] = float(d.get("at") or 0)
+                print(f"[cache] restored peer snapshot (age {int(time.time()-_mbp_store['at'])}s)", flush=True)
+    except Exception as e:
+        print(f"[cache] restore failed: {str(e)[:60]}", flush=True)
+
+
+def _save_mbp_cache(data):
+    """原子写对端快照, 供下次启动恢复."""
+    try:
+        if not MBP_CACHE_FILE:
+            return
+        MBP_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
+        tmp = MBP_CACHE_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps({"at": time.time(), "data": data}, ensure_ascii=False), encoding="utf-8")
+        tmp.replace(MBP_CACHE_FILE)
+    except Exception:
+        pass
 _flow = {"data": None, "at": 0.0}
 
 # ════════════════ v27 SQLite 历史层 (a2a_metrics.db) ════════════════
@@ -93,6 +120,7 @@ _flow = {"data": None, "at": 0.0}
 # 目的: ①flow 阶段变化留痕 → 泳道逐段耗时 (stage_marks) ②联动探测采样 → 在线率历史
 #       ③MBP 上报采样 → 延迟曲线 ④账本镜像 → 并发安全 + 可 SQL 查历史
 DB_FILE = DATA_DIR / "a2a_metrics.db"
+MBP_CACHE_FILE = DATA_DIR / "mbp_last.json"   # 对端最近一次上报快照
 _db_lock = threading.Lock()
 _last_nodes = {"task": None, "nodes": {}}
 
@@ -101,6 +129,9 @@ def db_conn():
     con = sqlite3.connect(DB_FILE, timeout=5)
     con.execute("PRAGMA journal_mode=WAL")
     return con
+
+
+_DB_INITED = [False]
 
 
 def init_db():
@@ -131,7 +162,9 @@ def init_db():
             """)
             con.commit()
             con.close()
-        print(f"[db] initialized {DB_FILE}", flush=True)
+        if not _DB_INITED[0]:
+            print(f"[db] initialized {DB_FILE}", flush=True)
+            _DB_INITED[0] = True
     except Exception as e:
         print(f"[db] init failed: {e}", flush=True)
 
@@ -1082,6 +1115,7 @@ class Handler(BaseHTTPRequestHandler):
             if self.path == "/api/mbp-push":
                 _mbp_store["data"] = data
                 _mbp_store["at"] = time.time()
+                _save_mbp_cache(data)
                 record_push(data)  # v27: MBP 上报采样 → 延迟曲线
                 # t4: 心跳响应捎带回传清单 — pending_outbox 元素与 GET /api/outbox 的 tasks 同源
                 # (同一个 pending_outbox()), MBP 上报器零配置顺手取走待回传结果。
@@ -1108,6 +1142,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    _restore_mbp_cache()
     init_db()  # v27: SQLite 历史层建表
     migrate_from_json()  # 旧 tasks.json 一次性回填 (幂等)
     print(f"a2a web (mini standalone) on 0.0.0.0:{PORT}")

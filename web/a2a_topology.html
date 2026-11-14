@@ -282,6 +282,16 @@
     color:var(--dim);border-radius:9999px;font-size:10px;line-height:1;padding:3px 7px;cursor:pointer}
   .topo-sw:hover{color:var(--orange);border-color:var(--orange)}
   .wf-chain{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;align-items:center;max-width:min(560px,96%)}
+  /* v31 自适应拓扑: 按机器/区域分组的泳道, 组内网格自适应 */
+  .wf-lanes{display:flex;flex-direction:column;gap:8px;width:min(600px,97%)}
+  .wf-lane{border:1px solid var(--line);border-radius:10px;padding:6px 9px 8px;background:rgba(255,255,255,.55)}
+  .wf-lane-h{display:flex;align-items:center;gap:5px;font-family:var(--mono);font-size:8.5px;
+    color:var(--dim);letter-spacing:.03em;margin-bottom:6px;text-transform:none}
+  .wf-lane-dot{width:5px;height:5px;border-radius:50%;background:var(--conn);flex:none}
+  .wf-lane-dot.on{background:var(--ok);box-shadow:0 0 4px rgba(29,122,77,.5)}
+  .wf-lane-h b{margin-left:auto;font-weight:600;color:var(--dim2);font-size:8px}
+  .wf-lane-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:5px}
+  .wf-lane-body .wf-chip{justify-content:center}
   .wf-chip{min-width:auto!important;display:flex;flex-direction:row!important;align-items:center;gap:5px;
     padding:6px 11px!important;border-radius:9999px;cursor:help}
   .wf-chip.2 .t{font-size:11px}
@@ -1292,18 +1302,16 @@ function renderDynamicTopo(t){
   if(!box) return;
   const softs = (t && t.softs) || [];
   const inst = softs.filter(s => s.mini_inst || s.mbp_inst);
-  const local = (t && t.a2a && t.a2a.localName) || 'Local';
+  const a2a = (t && t.a2a) || {};
+  const localName = a2a.localName || 'Local';
+  const remoteName = a2a.remoteName || 'Remote';
   const online = s => s.mini === true || s.mbp === true;
-  const byKind = k => inst.filter(s => (s.kind||'agent') === k);
 
-  // 主链只放「可派发」的 agent/platform; 其余 kind 作为附属信息 (不连线, 避免交叉)
-  const CAP = 5;
-  const allMain = [...byKind('agent'), ...byKind('platform')].sort((a,b)=>(online(b)?1:0)-(online(a)?1:0));
-  const main = allMain.slice(0, CAP);
-  const moreN = allMain.length - main.length;
+  // 只把「可派发」的 (agent/platform) 放进泳道; 算力/IDE/同步/通道 归到底部附属信息
+  const dispatchable = inst.filter(s => ['agent','platform'].includes(s.kind||'agent'));
   const sideKinds = ['runtime','ide','sync','net'];
   const sideLine = sideKinds.map(k => {
-    const arr = byKind(k);
+    const arr = inst.filter(s => (s.kind||'') === k);
     if(!arr.length) return null;
     const lbl = {runtime:'算力',ide:'IDE',sync:'同步',net:'通道'}[k];
     return `<span class="wf-side-item" title="${arr.map(x=>esc(x.name)+(online(x)?'(在线)':'(未跑)')).join(' · ')}">${lbl}: ${arr.map(x=>esc(x.name)).join(' · ')}</span>`;
@@ -1317,15 +1325,33 @@ function renderDynamicTopo(t){
       <span class="wf-lamp ${cls}"></span><span class="wf-chip-t">${esc(s.name)}</span></div>`;
   };
 
-  const nOn = main.filter(online).length;
+  // 按「在哪台机器上」分组 → 每组一个泳道; 两端都有的放本机泳道并标 双端
+  const groups = [];
+  const put = (host, name, arr) => { if(arr.length) groups.push({host, name, arr}); };
+  const onLocal  = dispatchable.filter(s => s.mini_inst);
+  const onRemote = dispatchable.filter(s => s.mbp_inst && !s.mini_inst);
+  put('local',  localName,  onLocal);
+  put('remote', remoteName, onRemote);
+
+  const CAP = 8;   // 每泳道最多显示 8 个, 超出折叠 (保证一屏不溢出)
+  const lanesHtml = groups.map(g => {
+    const shown = g.arr.slice(0, CAP), more = g.arr.length - shown.length;
+    const onN = shown.filter(online).length;
+    const dotOn = onN > 0;
+    return `<div class="wf-lane" data-host="${g.host}">
+      <div class="wf-lane-h"><span class="wf-lane-dot${dotOn?' on':''}"></span>${esc(g.name)}<b>${onN} 在线 / ${g.arr.length}</b></div>
+      <div class="wf-lane-body">${shown.map(chip).join('')}${more>0?`<div class="fnode wf-chip" title="${esc(g.arr.slice(CAP).map(x=>x.name).join(' · '))}"><span class="wf-chip-t" style="color:var(--dim2)">+${more}</span></div>`:''}</div>
+    </div>`;
+  }).join('');
+
+  const nOn = dispatchable.filter(online).length;
   box.innerHTML = `
     <div class="fnode stage wf-top" style="width:min(400px,84%)">
-      <div class="no">02</div><div class="t">${esc(local)} 接活</div>
-      <div class="d">可派发 ${main.length} · 在线 ${nOn}</div>
+      <div class="no">02</div><div class="t">${esc(localName)} 接活</div>
+      <div class="d">可派发 ${dispatchable.length} · 在线 ${nOn}</div>
     </div>
-    <div class="wf-chain" id="wf-chain">${main.length
-      ? main.map(chip).join('') + (moreN>0 ? `<div class="fnode wf-chip" title="${esc(allMain.slice(CAP).map(x=>x.name).join(' · '))}"><span class="wf-chip-t" style="color:var(--dim2)">+${moreN}</span></div>` : '')
-      : '<div class="wf-empty">未扫描到可派发的 agent<br><span>在 config.json 的 discovered 里加，或重跑 installer</span></div>'}</div>
+    ${groups.length ? `<div class="wf-lanes">${lanesHtml}</div>`
+      : '<div class="wf-lanes"><div class="wf-lane"><div class="wf-empty">未扫描到可派发的 agent<br><span>在 config.json 的 discovered 里加，或重跑 installer</span></div></div></div>'}
     <div class="fnode stage wf-bottom" style="width:min(400px,84%)">
       <div class="no">08</div><div class="t">结果回传</div>
       <div class="d">${nOn ? nOn+' 个 agent 可用' : '等待 agent 上线'}</div>
@@ -1338,31 +1364,46 @@ function drawDynamicEdges(){
   const box = $('wf-dynamic'), svg = $('edges-svg'), wf = $('wf');
   if(!box || !svg || !wf) return;
   const wr = wf.getBoundingClientRect();
-  const W = wf.scrollWidth, H = wf.scrollHeight;
   const top = box.querySelector('.wf-top');
   const bottom = box.querySelector('.wf-bottom');
-  const chips = [...box.querySelectorAll('.wf-chip[data-id]')];
-  if(!top || !bottom || !chips.length){ svg.innerHTML = ''; return; }
+  const lanes = [...box.querySelectorAll('.wf-lane')];
+  if(!top || !bottom || !lanes.length){ svg.innerHTML = ''; return; }
   const rel = el => { const r = el.getBoundingClientRect();
     return {l:r.left-wr.left, t:r.top-wr.top, w:r.width, h:r.height, cx:r.left-wr.left+r.width/2}; };
-  const A = rel(top), B = rel(bottom);
-  const Cs = chips.map(rel);
-  const busTop = A.t + A.h + 16;
-  const busBot = B.t - 16;
-  let d = `<defs><marker id="dyn-arr" viewBox="0 0 8 8" refX="7.5" refY="4" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#b8b2a8"/></marker></defs>`;
-  const ax = A.cx, bx = B.cx;
-  const minX = Math.min(...Cs.map(c=>c.cx)), maxX = Math.max(...Cs.map(c=>c.cx));
-  // 接活 → 水平分配线
-  d += `<path class="edge dyn" d="M${ax},${A.t+A.h+2} L${ax},${busTop}"/>`;
-  if(Cs.length > 1) d += `<path class="edge dyn" d="M${minX},${busTop} L${maxX},${busTop}"/>`;
-  Cs.forEach(c => { d += `<path class="edge dyn" d="M${c.cx},${busTop} L${c.cx},${c.t-2}" marker-end="url(#dyn-arr)"/>`; });
-  // chip → 汇聚线 → 回传
-  Cs.forEach(c => { d += `<path class="edge dyn" d="M${c.cx},${c.t+c.h+2} L${c.cx},${busBot}"/>`; });
-  if(Cs.length > 1) d += `<path class="edge dyn" d="M${minX},${busBot} L${maxX},${busBot}"/>`;
-  d += `<path class="edge dyn" d="M${bx},${busBot} L${bx},${B.t-2}" marker-end="url(#dyn-arr)"/>`;
-  svg.setAttribute('width', W); svg.setAttribute('height', H);
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.innerHTML = d;
+  const A = rel(top), B = rel(bottom), Ls = lanes.map(rel);
+  const busY1 = A.t + A.h + 9;                    // 上总线 (入口下方)
+  const busY2 = B.t - 9;                          // 下总线 (回传上方)
+  const xs = Ls.map(l => l.cx);
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const mk = d => `<path class="edge live" d="${d}"/>`;
+  let out = '';
+  // 同列(垂直堆叠) → 按顺序串联: 入口 → 泳道1 → 泳道2 → ... → 回传
+  if(Math.abs(minX - maxX) < 2){
+    let prevBottom = A.t + A.h;
+    for(const l of Ls){
+      out += mk(`M ${l.cx} ${prevBottom} L ${l.cx} ${l.t}`);
+      prevBottom = l.t + l.h;
+    }
+    out += mk(`M ${Ls[Ls.length-1].cx} ${prevBottom} L ${B.cx} ${B.t}`);
+    svg.innerHTML = out;
+    if(typeof setupLiquidFlow === 'function') setupLiquidFlow();
+    return;
+  } else {
+    const cx = A.cx;
+    out += mk(`M ${cx} ${A.t+A.h} L ${cx} ${busY1}`);
+    out += mk(`M ${minX} ${busY1} L ${maxX} ${busY1}`);
+    for(const l of Ls) out += mk(`M ${l.cx} ${busY1} L ${l.cx} ${l.t}`);
+  }
+  // 各泳道底 → 下总线 → 汇聚 → 回传
+  if(Math.abs(minX - maxX) < 2){
+    out += mk(`M ${Ls[0].cx} ${Ls[0].t+Ls[0].h} L ${Ls[0].cx} ${B.t}`);
+  } else {
+    for(const l of Ls) out += mk(`M ${l.cx} ${l.t+l.h} L ${l.cx} ${busY2}`);
+    out += mk(`M ${minX} ${busY2} L ${maxX} ${busY2}`);
+    out += mk(`M ${B.cx} ${busY2} L ${B.cx} ${B.t}`);
+  }
+  svg.innerHTML = out;
+  if(typeof setupLiquidFlow === 'function') setupLiquidFlow();
 }
 
 function applyTopoMode(t){

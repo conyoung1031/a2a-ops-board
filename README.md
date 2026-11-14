@@ -189,3 +189,19 @@ rm -rf ~/.hermes/plugins/a2a-ops-board
 ## License
 
 MIT —— 可自由使用、修改、分发、商用，保留版权声明即可。
+
+## 更新日志
+
+### v0.2.0 (2026-11-14)
+
+- **角色模型**：`role: hub | client | single`，安装时选一次决定装哪些服务 —— 不再假设「哪台机器必须值守」。值守机跑面板 + 每日自检，发单机只上报状态。也支持一 hub 多 client。
+- **每日自检**：`--mode daily` 每天 00:00 统计昨日会话、查面板端点健康、查历史层表行数、检测账本僵尸任务，产出 `reports/YYYY-MM-DD-daily.md`。刻意只观测、不自动改代码。
+- **自适应拓扑**：Agent 图从「单行平铺 + 折叠」改为**按机器/区域分组的泳道**，组内网格自适应（`auto-fit`），连线走「入口 → 各泳道 → 汇聚 → 回传」，数量再多也不重叠。
+- **扫描器升级**：配方 29 → 33 项，新增 OpenClaw（Gateway WS `:18789` / Nodes 多机）、Goose、Crush、Copilot CLI；`dir` 探测支持 glob，修掉「装了 VS Code 就报装了 Cline」的误报。
+- **重启不再失明**：对端上报快照落 `data/mbp_last.json`，面板重启立刻恢复上次已知状态，不用等对方下一次心跳。
+- **历史层瘦身**：`probe_samples` 加 30s 节流 + 摘要化 payload（2237B → 498B），7 天稳态从 **705MB 降到约 9MB**。
+- **前端全配置化**：38 处写死的机器名改为从 `/api/topology` 的 `a2a.localName/remoteName` 驱动；编排角色名的说明也从实际 profile 推导。
+- MIT License。
+
+### v0.1.0
+首个可用版本：双机运控台、工作流拓扑、联动矩阵、巡检榜、SQLite 历史层、安装向导。
