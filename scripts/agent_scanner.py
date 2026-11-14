@@ -12,6 +12,7 @@
     python3 agent_scanner.py --json     # 输出 JSON (给 installer 用)
 """
 import argparse
+import glob
 import json
 import os
 import platform
@@ -42,6 +43,21 @@ RECIPES = [
     {"id": "hermes", "name": "Hermes", "kind": "agent", "link": "gateway / A2A 路由",
      "probe": [{"type": "dir", "target": "~/.hermes"}, {"type": "bin", "target": "hermes"}],
      "live": [{"type": "http", "target": "http://127.0.0.1:9900/.well-known/agent.json"}]},
+
+    # ── 通用 Agent 框架 (多机/多 agent 编排类) ──
+    {"id": "openclaw", "name": "OpenClaw", "kind": "agent", "link": "Gateway WS :18789 / Nodes 多机",
+     "probe": [{"type": "bin", "target": "openclaw"}, {"type": "dir", "target": "~/.openclaw"},
+               {"type": "dir", "target": "~/.clawdbot"}],
+     "live": [{"type": "tcp", "target": "127.0.0.1:18789"}, {"type": "proc", "target": "openclaw"}]},
+    {"id": "goose", "name": "Goose", "kind": "agent", "link": "本地 CLI 会话",
+     "probe": [{"type": "bin", "target": "goose"}, {"type": "dir", "target": "~/.config/goose"}],
+     "live": [{"type": "proc", "target": "goose"}]},
+    {"id": "crush", "name": "Crush", "kind": "agent", "link": "本地 CLI 会话",
+     "probe": [{"type": "bin", "target": "crush"}, {"type": "dir", "target": "~/.config/crush"}],
+     "live": [{"type": "proc", "target": "crush"}]},
+    {"id": "copilot-cli", "name": "Copilot CLI", "kind": "agent", "link": "本地 CLI 会话",
+     "probe": [{"type": "bin", "target": "github-copilot-cli"}, {"type": "bin", "target": "copilot"}],
+     "live": [{"type": "proc", "target": "copilot"}]},
 
     # ── 编码 Agent CLI ──
     {"id": "claude-code", "name": "Claude Code", "kind": "agent", "link": "本地 CLI 会话",
@@ -80,7 +96,10 @@ RECIPES = [
      "probe": [{"type": "app", "target": "Trae CN"}, {"type": "dir", "target": "~/.trae-cn"}],
      "live": [{"type": "proc", "target": "Trae"}]},
     {"id": "vscode-cline", "name": "VS Code + Cline/Roo", "kind": "ide", "link": "编辑器扩展",
-     "probe": [{"type": "dir", "target": "~/.vscode/extensions"}, {"type": "dir", "target": "~/Library/Application Support/Code"}],
+     "probe": [{"type": "dir", "target": "~/.vscode/extensions/*cline*"},
+               {"type": "dir", "target": "~/.vscode/extensions/*roo*"},
+               {"type": "dir", "target": "~/.vscode-insiders/extensions/*cline*"},
+               {"type": "file", "target": "~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev"}],
      "live": [{"type": "proc", "target": "Visual Studio Code"}]},
     {"id": "zed", "name": "Zed", "kind": "ide", "link": "编辑器内 Agent",
      "probe": [{"type": "app", "target": "Zed"}, {"type": "dir", "target": "~/.zed"}],
@@ -156,8 +175,14 @@ def _app_ok(name):
 
 
 def _dir_ok(target):
-    p = Path(os.path.expanduser(target))
-    return p.exists()
+    """目录存在性; target 含 * 时按 glob 匹配 (用于精确判断某个扩展/插件是否真装了)."""
+    t = os.path.expanduser(target)
+    if "*" in t or "?" in t:
+        try:
+            return bool(glob.glob(t))
+        except Exception:
+            return False
+    return Path(t).exists()
 
 
 def _proc_ok(pat):
