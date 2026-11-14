@@ -185,3 +185,7 @@ rm -rf ~/.hermes/plugins/a2a-ops-board
 - **Windows**：无服务托管支持，需手动常驻运行 `server/a2a_web.py`
 - **`--mode pipeline` 需要三个 profile**：起草（默认 `zhongshu`）、审议（`menxia`）、调度（`shangshu`）。没有这套审批架构就用 `--mode direct`（只需一个能接活的 agent），或改 `orchestration` 段指向你自己的 profile
 - **对端离线判定 75 秒**：对端 reporter 超过 75s 没上报即视为离线，其对端灯与延迟归零（`MBP_STALE_S`）
+
+## License
+
+MIT —— 可自由使用、修改、分发、商用，保留版权声明即可。
