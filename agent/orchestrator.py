@@ -239,7 +239,7 @@ def flush_ledger_queue():
     return sent
 
 
-def ledger(status, detail="", exec_host="mini"):
+def ledger(status, detail="", exec_host="mini", result=""):
     """登记/更新当前任务到 Mini 账本. status: running|done|failed."""
     if not LEDGER_ID:
         return
@@ -253,6 +253,7 @@ def ledger(status, detail="", exec_host="mini"):
             "exec_host": exec_host,
             "status": status,
             "detail": detail[:200],
+            "result_text": (result or "")[:8000],
             "steps": list(LEDGER_STEPS),
         },
         ensure_ascii=False,
@@ -482,7 +483,8 @@ def daily_selfopt(task):
 
     nodes["p_six"] = "done"
     push_flow(board(task, "daily", nodes, "07 完成 · 每日自检", "报告: %s · 告警 %d 条" % (saved.split("/")[-1], len(warn))))
-    ledger("done" if not warn else "done", "每日自检完成 · 报告 %s · 告警 %d 条 · %d 会话/%d 消息" % (saved.split("/")[-1], len(warn), total_s, total_m))
+    ledger("done", "每日自检完成 · 报告 %s · 告警 %d 条 · %d 会话/%d 消息" % (saved.split("/")[-1], len(warn), total_s, total_m),
+           result=text)   # v31: 报告全文写进 result_text, 面板点开即可看到, 不用登机器翻文件
     print("[daily] 报告: %s" % saved)
     print("[daily] 会话 %d / 消息 %d · 告警 %d 条" % (total_s, total_m, len(warn)))
     for w in warn:
