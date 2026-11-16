@@ -249,7 +249,7 @@ def ledger(status, detail="", exec_host="mini"):
             "task": CURRENT_TASK[:120],
             "source": "orchestrator",
             "mode": CURRENT_MODE,
-            "dispatch_host": "mbp",
+            "dispatch_host": (CFG.get("local_name") or "local").lower(),
             "exec_host": exec_host,
             "status": status,
             "detail": detail[:200],

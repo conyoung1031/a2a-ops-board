@@ -192,6 +192,11 @@ MIT —— 可自由使用、修改、分发、商用，保留版权声明即可
 
 ## 更新日志
 
+### v0.2.1
+
+- **修「待回传」永远不消失**：心跳响应里的 `pending_outbox` 之前被 reporter 直接丢弃（只打印），值守机挂起的结果永远不会被确认。现在 reporter 会取走结果、落本地 `~/.hermes/logs/a2a-outbox-received.log` 归档、再 POST `/api/outbox-ack` 确认，面板上「待回传」随之清空。这就是 Fire-and-Forget 的回程闭环。
+- `dispatch_host` 不再写死 `mbp`，按本机 `config.local_name` 记录（在值守机上跑每日自检时不会误标成另一台发单）。
+
 ### v0.2.0 (2026-11-14)
 
 - **角色模型**：`role: hub | client | single`，安装时选一次决定装哪些服务 —— 不再假设「哪台机器必须值守」。值守机跑面板 + 每日自检，发单机只上报状态。也支持一 hub 多 client。

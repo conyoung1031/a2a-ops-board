@@ -228,6 +228,66 @@ def proc_ok(pat):
         return False
 
 
+
+def ack_outbox(ids):
+    """标记结果已送达: POST /api/outbox-ack (与 push 同一 token)."""
+    if not ids:
+        return None
+    url = PUSH_URL.replace("/api/mbp-push", "/api/outbox-ack")
+    req = urllib.request.Request(
+        url,
+        data=json.dumps({"ids": ids}).encode(),
+        headers={"Content-Type": "application/json",
+                 "Authorization": "Bearer %s" % (read_token() or "")},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return r.status, r.read(300).decode()
+
+
+def drain_outbox(body):
+    """心跳响应捎带的待回传结果: 打印 + 落本地归档 + ack.
+
+    这就是 Fire-and-Forget 的回程: 值守机在发单方离线时把结果挂起,
+    发单方下次心跳顺手取走并确认, 面板上的「待回传」随之消失.
+    """
+    try:
+        resp = json.loads(body) if isinstance(body, str) else body
+    except Exception:
+        return 0
+    pend = (resp or {}).get("pending_outbox") or []
+    if not pend:
+        return 0
+    ids = []
+    arc = HOME / ".hermes" / "logs" / "a2a-outbox-received.log"
+    try:
+        arc.parent.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
+    for x in pend:
+        tid = x.get("id")
+        if not tid:
+            continue
+        ids.append(tid)
+        line = "[%s] %s | %s | %s | %s\n" % (
+            time.strftime("%Y-%m-%d %H:%M:%S"), tid, x.get("task") or "",
+            x.get("status") or "", (x.get("detail") or "").replace("\n", " ")[:200])
+        print("  [取回] " + line.strip(), flush=True)
+        try:
+            with arc.open("a", encoding="utf-8") as f:
+                f.write(line)
+                if x.get("result_text"):
+                    f.write("  result: %s\n" % str(x["result_text"])[:2000])
+        except Exception:
+            pass
+    try:
+        st, txt = ack_outbox(ids)
+        print("  [ack] %s -> %s %s" % (ids, st, txt[:120]), flush=True)
+    except Exception as e:
+        print("  [ack] failed:", str(e)[:100], flush=True)
+    return len(ids)
+
+
 def main():
     payload = json.dumps(
         {
@@ -251,7 +311,9 @@ def main():
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as r:
-            print("push:", PUSH_URL, r.status, r.read(120).decode())
+            status, body = r.status, r.read().decode()
+        print("push:", PUSH_URL, status, body[:120])
+        drain_outbox(body)          # v31: 取走待回传结果并 ack, 否则永远 pending
     except Exception as e:
         print("push failed:", str(e)[:120])
 
